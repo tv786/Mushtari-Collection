@@ -1,0 +1,325 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fdf6f2;color:#1a1a1a;min-height:100vh;padding-bottom:85px;}
+
+/* ROSE GOLD PALETTE */
+:root{
+  --rg-deep:#8B4A3A;
+  --rg-mid:#C4805A;
+  --rg-light:#D4956A;
+  --rg-pale:#F2D9CC;
+  --rg-bg:#fdf6f2;
+  --rg-card:#fff9f6;
+  --rg-border:#e8cfc0;
+  --rg-text:#5a3228;
+  --rg-muted:#a07060;
+}
+
+.header{background:#fff9f6;padding:18px 16px 14px;border-bottom:1.5px solid var(--rg-border);text-align:center;position:sticky;top:0;z-index:10;}
+.logo-img{width:180px;max-width:70vw;height:auto;display:block;margin:0 auto; mix-blend-mode: multiply;}
+.header-sub{font-size:12px;color:var(--rg-muted);margin-top:2px;letter-spacing:0.5px;}
+
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff9f6;border-top:1.5px solid var(--rg-border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom);}
+.nav-btn{flex:1;padding:12px 4px 10px;border:none;background:transparent;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--rg-muted);cursor:pointer;font-family:inherit;}
+.nav-btn.active{color:var(--rg-deep);}
+.nav-btn .icon{font-size:22px;line-height:1;}
+
+.section{display:none;padding:14px;}
+.section.active{display:block;}
+
+.period-row{display:flex;background:#fff9f6;border-radius:12px;padding:4px;margin-bottom:14px;gap:4px;border:1px solid var(--rg-border);}
+.period-btn{flex:1;padding:10px 4px;border:none;background:transparent;border-radius:9px;font-size:14px;font-weight:500;color:var(--rg-muted);cursor:pointer;font-family:inherit;transition:all .15s;}
+.period-btn.active{background:linear-gradient(135deg,var(--rg-mid),var(--rg-deep));color:#fff;}
+
+.metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.metric-card{background:var(--rg-card);border-radius:14px;padding:14px;border:1px solid var(--rg-border);}
+.metric-card .mlabel{font-size:11px;color:var(--rg-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;}
+.metric-card .mval{font-size:22px;font-weight:700;color:var(--rg-deep);}
+.metric-card.profit .mval{color:#2e7d52;}
+
+.vaajebat-card{border-radius:14px;padding:18px;border:1.5px solid var(--rg-light);margin-bottom:14px;background:linear-gradient(135deg,#fff4ee,#fde8d8);}
+.vaajebat-card .vtop{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.vaajebat-card .vlabel{font-size:14px;font-weight:700;color:var(--rg-deep);}
+.vaajebat-card .vbadge{font-size:11px;background:var(--rg-mid);color:#fff;padding:3px 9px;border-radius:20px;}
+.vaajebat-card .vval{font-size:30px;font-weight:700;color:var(--rg-deep);margin:4px 0;}
+.vaajebat-card .vnote{font-size:11.5px;color:var(--rg-muted);}
+
+.section-label{font-size:12px;font-weight:600;color:var(--rg-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.6px;}
+
+.entry-card{background:var(--rg-card);border-radius:14px;padding:16px;margin-bottom:10px;border:1px solid var(--rg-border);}
+.entry-sr{font-size:11px;color:#ccc;margin-bottom:4px;}
+.entry-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.entry-name{font-size:17px;font-weight:600;color:var(--rg-deep);}
+.entry-customer{font-size:13px;color:var(--rg-muted);margin-top:2px;}
+.profit-pill{background:#e8f5ee;color:#1e6e42;font-size:13px;font-weight:700;padding:6px 11px;border-radius:20px;white-space:nowrap;}
+.entry-row{display:flex;gap:6px;flex-wrap:wrap;}
+.entry-tag{font-size:12px;background:var(--rg-pale);color:var(--rg-text);padding:4px 10px;border-radius:8px;}
+.entry-date{font-size:12px;color:#bbb;margin-top:8px;}
+.del-btn{background:#fff0f0;border:none;color:#c0392b;width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+
+.form-card{background:var(--rg-card);border-radius:16px;padding:20px;border:1px solid var(--rg-border);}
+.form-title{font-size:18px;font-weight:700;color:var(--rg-deep);margin-bottom:20px;}
+.fgroup{margin-bottom:16px;}
+.fgroup label{font-size:14px;font-weight:500;color:var(--rg-text);display:block;margin-bottom:7px;}
+.fgroup input{width:100%;padding:14px 16px;border:1.5px solid var(--rg-border);border-radius:12px;font-size:16px;font-family:inherit;color:#1a1a1a;background:#fff;outline:none;transition:border .15s;}
+.fgroup input:focus{border-color:var(--rg-mid);}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.profit-preview{margin-top:10px;padding:13px 16px;border-radius:12px;font-size:15px;font-weight:600;text-align:center;display:none;}
+.profit-preview.show{display:block;}
+.save-btn{width:100%;padding:17px;background:linear-gradient(135deg,var(--rg-mid),var(--rg-deep));color:#fff;border:none;border-radius:14px;font-size:17px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;}
+.save-btn:active{opacity:.85;}
+
+.empty{text-align:center;color:#c0a090;font-size:15px;padding:40px 16px;}
+.empty .eicon{font-size:44px;margin-bottom:10px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <img class="logo-img" src="./logo.jpeg" alt="Mushtari Collection"/>
+  <div class="header-sub">Rida Sales Ledger</div>
+</div>
+
+<div id="sec-dashboard" class="section active">
+  <div class="period-row">
+    <button class="period-btn active" onclick="setPeriod('weekly',this)">Weekly</button>
+    <button class="period-btn" onclick="setPeriod('monthly',this)">Monthly</button>
+    <button class="period-btn" onclick="setPeriod('yearly',this)">Yearly</button>
+  </div>
+  <div class="metrics-grid">
+    <div class="metric-card"><div class="mlabel">Total Sales</div><div class="mval" id="m-sales">0</div></div>
+    <div class="metric-card"><div class="mlabel">Revenue</div><div class="mval" id="m-revenue">Rs.0</div></div>
+    <div class="metric-card"><div class="mlabel">Total Cost</div><div class="mval" id="m-cost">Rs.0</div></div>
+    <div class="metric-card profit"><div class="mlabel">Net Profit</div><div class="mval" id="m-profit">Rs.0</div></div>
+  </div>
+  <div class="vaajebat-card">
+    <div class="vtop">
+      <div class="vlabel">Vaajebat</div>
+      <div class="vbadge" id="vaajebat-badge">1/40 Monthly</div>
+    </div>
+    <div class="vval" id="m-vaajebat">Rs.0</div>
+    <div class="vnote" id="vaajebat-note">1/40th of this month's profit</div>
+  </div>
+  <div class="section-label">Recent Sales</div>
+  <div id="recent-list"><div class="empty"><div class="eicon">🧾</div>No sales yet. Tap + Add Sale to begin!</div></div>
+</div>
+
+<div id="sec-add" class="section">
+  <div class="form-card">
+    <div class="form-title">New Sale Entry</div>
+    <div class="fgroup">
+      <label>Rida Name / Style</label>
+      <input type="text" id="f-name" placeholder="e.g. Floral Pink Rida" autocomplete="off"/>
+    </div>
+    <div class="frow">
+      <div class="fgroup">
+        <label>Material Price</label>
+        <input type="number" id="f-material" placeholder="Rs. 0" inputmode="numeric" oninput="previewProfit()"/>
+      </div>
+      <div class="fgroup">
+        <label>Handwork Price</label>
+        <input type="number" id="f-handwork" placeholder="Rs. 0" inputmode="numeric" oninput="previewProfit()"/>
+      </div>
+    </div>
+    <div class="fgroup">
+      <label>Sold At Price</label>
+      <input type="number" id="f-sold" placeholder="Rs. 0" inputmode="numeric" oninput="previewProfit()"/>
+    </div>
+    <div class="profit-preview" id="profit-preview"></div>
+    <div class="fgroup" style="margin-top:16px;">
+      <label>Customer Name</label>
+      <input type="text" id="f-customer" placeholder="Customer name" autocomplete="off"/>
+    </div>
+    <button class="save-btn" onclick="addEntry()">Save Entry</button>
+  </div>
+</div>
+
+<div id="sec-history" class="section">
+  <div class="period-row">
+    <button class="period-btn active" onclick="setHistoryPeriod('weekly',this)">Weekly</button>
+    <button class="period-btn" onclick="setHistoryPeriod('monthly',this)">Monthly</button>
+    <button class="period-btn" onclick="setHistoryPeriod('yearly',this)">Yearly</button>
+  </div>
+  <div id="history-list"><div class="empty"><div class="eicon">📋</div>No entries yet</div></div>
+</div>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard')">
+    <span class="icon">📊</span>Dashboard
+  </button>
+  <button class="nav-btn" id="nav-add" onclick="switchTab('add')">
+    <span class="icon">➕</span>Add Sale
+  </button>
+  <button class="nav-btn" id="nav-history" onclick="switchTab('history')">
+    <span class="icon">📋</span>History
+  </button>
+</nav>
+
+<script>
+var entries = [];
+try { entries = JSON.parse(localStorage.getItem('mushtari_v3') || '[]'); } catch(e){}
+var currentPeriod = 'weekly';
+var historyPeriod = 'weekly';
+
+function save(){ try{ localStorage.setItem('mushtari_v3', JSON.stringify(entries)); }catch(e){} }
+function fmt(n){ return 'Rs.' + Math.round(n).toLocaleString('en-IN'); }
+
+function switchTab(tab){
+  ['dashboard','add','history'].forEach(function(t){
+    document.getElementById('sec-'+t).classList.toggle('active', t===tab);
+    document.getElementById('nav-'+t).classList.toggle('active', t===tab);
+  });
+  if(tab==='dashboard') renderDashboard();
+  if(tab==='history') renderHistory();
+}
+
+function setPeriod(p, el){
+  currentPeriod = p;
+  document.querySelectorAll('#sec-dashboard .period-btn').forEach(function(b){ b.classList.remove('active'); });
+  el.classList.add('active');
+  renderDashboard();
+}
+
+function setHistoryPeriod(p, el){
+  historyPeriod = p;
+  document.querySelectorAll('#sec-history .period-btn').forEach(function(b){ b.classList.remove('active'); });
+  el.classList.add('active');
+  renderHistory();
+}
+
+function filterBy(period){
+  var now = new Date();
+  return entries.filter(function(e){
+    var d = new Date(e.date);
+    if(period==='weekly'){ var w=new Date(now); w.setDate(now.getDate()-7); return d>=w; }
+    if(period==='monthly'){ return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear(); }
+    return d.getFullYear()===now.getFullYear();
+  });
+}
+
+// Vaajebat logic:
+// weekly: 1/40 of this week's profit (approximation shown)
+// monthly: 1/40 of this month's profit
+// yearly: sum of 1/40 of each month's profit separately
+function calcVaajebat(period){
+  var now = new Date();
+  if(period==='weekly'){
+    var w = new Date(now); w.setDate(now.getDate()-7);
+    var f = entries.filter(function(e){ return new Date(e.date)>=w; });
+    var profit = f.reduce(function(s,e){ return s+e.sold-e.material-e.handwork; },0);
+    return { val: profit>0 ? profit/40 : 0, note: '1/40th of this week\'s profit', badge: '1/40 Weekly' };
+  }
+  if(period==='monthly'){
+    var f2 = entries.filter(function(e){ var d=new Date(e.date); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); });
+    var profit2 = f2.reduce(function(s,e){ return s+e.sold-e.material-e.handwork; },0);
+    return { val: profit2>0 ? profit2/40 : 0, note: '1/40th of this month\'s profit', badge: '1/40 Monthly' };
+  }
+  // yearly: sum of monthly 1/40ths
+  var monthMap = {};
+  entries.filter(function(e){ return new Date(e.date).getFullYear()===now.getFullYear(); }).forEach(function(e){
+    var d = new Date(e.date);
+    var key = d.getFullYear()+'-'+d.getMonth();
+    if(!monthMap[key]) monthMap[key] = 0;
+    monthMap[key] += e.sold - e.material - e.handwork;
+  });
+  var total = 0;
+  Object.keys(monthMap).forEach(function(k){ if(monthMap[k]>0) total += monthMap[k]/40; });
+  var months = Object.keys(monthMap).length;
+  return { val: total, note: 'Sum of 1/40th from each month ('+months+' month'+(months!==1?'s':'')+')', badge: '1/40 Per Month' };
+}
+
+function renderDashboard(){
+  var f = filterBy(currentPeriod);
+  var revenue = f.reduce(function(s,e){ return s+e.sold; },0);
+  var cost = f.reduce(function(s,e){ return s+e.material+e.handwork; },0);
+  var profit = revenue - cost;
+  document.getElementById('m-sales').textContent = f.length;
+  document.getElementById('m-revenue').textContent = fmt(revenue);
+  document.getElementById('m-cost').textContent = fmt(cost);
+  document.getElementById('m-profit').textContent = fmt(profit);
+  var v = calcVaajebat(currentPeriod);
+  document.getElementById('m-vaajebat').textContent = fmt(v.val);
+  document.getElementById('vaajebat-note').textContent = v.note;
+  document.getElementById('vaajebat-badge').textContent = v.badge;
+  var recent = entries.slice().reverse().slice(0,5);
+  var el = document.getElementById('recent-list');
+  if(!recent.length){ el.innerHTML='<div class="empty"><div class="eicon">🧾</div>No sales yet. Tap + Add Sale to begin!</div>'; return; }
+  el.innerHTML = recent.map(function(e){ return entryHTML(e,false); }).join('');
+}
+
+function entryHTML(e, showDel){
+  var profit = e.sold-e.material-e.handwork;
+  var d = new Date(e.date);
+  var dateStr = d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear();
+  return '<div class="entry-card">'
+    +'<div class="entry-sr">Sr. '+e.sr+'</div>'
+    +'<div class="entry-top">'
+    +'<div><div class="entry-name">'+e.name+'</div><div class="entry-customer">'+e.customer+'</div></div>'
+    +'<div style="display:flex;align-items:center;gap:8px;">'
+    +'<span class="profit-pill">+'+fmt(profit)+'</span>'
+    +(showDel?'<button class="del-btn" onclick="deleteEntry(\''+e.id+'\')">&#x2715;</button>':'')
+    +'</div></div>'
+    +'<div class="entry-row">'
+    +'<span class="entry-tag">Material: '+fmt(e.material)+'</span>'
+    +'<span class="entry-tag">Handwork: '+fmt(e.handwork)+'</span>'
+    +'<span class="entry-tag">Sold: '+fmt(e.sold)+'</span>'
+    +'</div>'
+    +'<div class="entry-date">'+dateStr+'</div>'
+    +'</div>';
+}
+
+function renderHistory(){
+  var f = filterBy(historyPeriod).slice().reverse();
+  var el = document.getElementById('history-list');
+  if(!f.length){ el.innerHTML='<div class="empty"><div class="eicon">📋</div>No entries for this period</div>'; return; }
+  el.innerHTML = f.map(function(e){ return entryHTML(e,true); }).join('');
+}
+
+function previewProfit(){
+  var mat=parseFloat(document.getElementById('f-material').value)||0;
+  var hw=parseFloat(document.getElementById('f-handwork').value)||0;
+  var sold=parseFloat(document.getElementById('f-sold').value)||0;
+  var el=document.getElementById('profit-preview');
+  if(sold>0){
+    var p=sold-mat-hw;
+    el.textContent=(p>=0?'Profit: ':'Loss: ')+fmt(Math.abs(p));
+    el.style.background=p>=0?'#e8f5ee':'#fff0f0';
+    el.style.color=p>=0?'#1e6e42':'#c0392b';
+    el.classList.add('show');
+  } else { el.classList.remove('show'); }
+}
+
+function addEntry(){
+  var name=document.getElementById('f-name').value.trim();
+  var material=parseFloat(document.getElementById('f-material').value)||0;
+  var handwork=parseFloat(document.getElementById('f-handwork').value)||0;
+  var sold=parseFloat(document.getElementById('f-sold').value)||0;
+  var customer=document.getElementById('f-customer').value.trim();
+  if(!name){ alert('Please enter the Rida name.'); return; }
+  if(!sold){ alert('Please enter the sold price.'); return; }
+  if(!customer){ alert('Please enter the customer name.'); return; }
+  entries.push({ id:Date.now().toString(), sr:entries.length+1, name:name, material:material, handwork:handwork, sold:sold, customer:customer, date:new Date().toISOString() });
+  save();
+  ['f-name','f-material','f-handwork','f-sold','f-customer'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('profit-preview').classList.remove('show');
+  switchTab('dashboard');
+}
+
+function deleteEntry(id){
+  if(!confirm('Delete this entry?')) return;
+  entries=entries.filter(function(e){ return e.id!==id; });
+  save();
+  renderHistory();
+  renderDashboard();
+}
+
+renderDashboard();
+</script>
+</body>
+</html>
