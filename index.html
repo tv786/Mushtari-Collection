@@ -289,21 +289,25 @@ function entryHTML(e,showDel,query){
   var isDue=e.paymentStatus==='due';
   var statusBadge=isPaid?'<span class="status-badge status-paid">Paid</span>':isDue?'<span class="status-badge status-due">Due</span>':'';
   return '<div class="entry-card">'
+    +'<div class="entry-body">'
     +(e.image?'<img class="entry-thumb" src="'+e.image+'" alt="Rida photo" onclick="openImg(\''+e.id+'\')"/>':'')
+    +'<div class="entry-details">'
     +'<div class="entry-sr">Sr. '+esr+statusBadge+'</div>'
     +'<div class="entry-top">'
     +'<div><div class="entry-name">'+ename+'</div><div class="entry-customer">'+ecust+'</div></div>'
-    +'<div style="display:flex;align-items:center;gap:8px;">'
+    +'<div style="display:flex;align-items:center;gap:6px;">'
     +'<span class="profit-pill">+'+fmt(profit)+'</span>'
     +(showDel?'<button class="del-btn" onclick="deleteEntry(\''+e.id+'\')">&#x2715;</button>':'')
     +'</div></div>'
     +'<div class="entry-row">'
-    +'<span class="entry-tag">Material: '+fmt(e.material)+'</span>'
+    +'<span class="entry-tag">Mat: '+fmt(e.material)+'</span>'
     +'<span class="entry-tag">Lace: '+fmt(e.lace)+'</span>'
-    +'<span class="entry-tag">Handwork: '+fmt(e.handwork)+'</span>'
+    +'<span class="entry-tag">HW: '+fmt(e.handwork)+'</span>'
     +'<span class="entry-tag">Sold: '+fmt(e.sold)+'</span>'
     +'</div>'
     +'<div class="entry-date">'+dateStr+'</div>'
+    +'</div>'
+    +'</div>'
     +'<div class="payment-row">'
     +'<button class="pay-btn '+(isPaid?'active-paid':'paid')+'" onclick="togglePayment(\''+e.id+'\',\'paid\')">✓ Paid</button>'
     +'<button class="pay-btn '+(isDue?'active-due':'due')+'" onclick="togglePayment(\''+e.id+'\',\'due\')">! Due</button>'
