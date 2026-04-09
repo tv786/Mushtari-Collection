@@ -121,30 +121,36 @@
 var entries=[];
 var clearedMonths={};
 
+// Real-time listeners - setup first
+function setupListeners() {
+  window.onValue(window.ref(window.database, 'entries'), (snapshot) => {
+    entries = snapshot.val() || [];
+    renderDashboard();
+    renderHistory();
+    renderSplit();
+  });
+
+  window.onValue(window.ref(window.database, 'clearedMonths'), (snapshot) => {
+    clearedMonths = snapshot.val() || {};
+    renderSplit();
+  });
+}
+
 // Load data from Firebase
 function loadData() {
   window.get(window.ref(window.database, 'entries')).then((snapshot) => {
     entries = snapshot.val() || [];
     renderDashboard();
+  }).catch(err => {
+    console.error('Error loading entries:', err);
   });
   
   window.get(window.ref(window.database, 'clearedMonths')).then((snapshot) => {
     clearedMonths = snapshot.val() || {};
+  }).catch(err => {
+    console.error('Error loading clearedMonths:', err);
   });
 }
-
-// Real-time listeners
-window.onValue(window.ref(window.database, 'entries'), (snapshot) => {
-  entries = snapshot.val() || [];
-  renderDashboard();
-  renderHistory();
-  renderSplit();
-});
-
-window.onValue(window.ref(window.database, 'clearedMonths'), (snapshot) => {
-  clearedMonths = snapshot.val() || {};
-  renderSplit();
-});
 
 // Data migration function (run once in console)
 function migrateToFirebase() {
@@ -161,8 +167,19 @@ function migrateToFirebase() {
   }
 }
 
-// Load initial data
-loadData();
+// Initialize when Firebase is ready
+if (window.database) {
+  setupListeners();
+  loadData();
+} else {
+  // Wait for firebase-init.js to load
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+      setupListeners();
+      loadData();
+    }, 500);
+  });
+}
 var currentPeriod='weekly';
 var historyPeriod='all';
 var activeFilter='all';
