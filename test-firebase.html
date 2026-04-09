@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Firebase Connection Test</title>
+</head>
+<body>
+    <h1>Firebase Connection Test</h1>
+    <div id="status">Connecting...</div>
+    <button onclick="testWrite()">Test Write</button>
+    <button onclick="testRead()">Test Read</button>
+    <div id="result"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue, once } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBTeYYuBt5EqZRnhhQfJ2d4rcLI-RP_4GU",
+            authDomain: "mushtari-collection.firebaseapp.com",
+            databaseURL: "https://mushtari-collection-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "mushtari-collection",
+            storageBucket: "mushtari-collection.firebasestorage.app",
+            messagingSenderId: "541245067810",
+            appId: "1:541245067810:web:9d8fa6f8fb35230260307b",
+            measurementId: "G-X2NQZJYJGF"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        window.testWrite = function() {
+            set(ref(database, 'test'), {
+                message: 'Hello Firebase!',
+                timestamp: new Date().toISOString()
+            }).then(() => {
+                document.getElementById('result').textContent = 'Write successful!';
+            }).catch((error) => {
+                document.getElementById('result').textContent = 'Write failed: ' + error.message;
+            });
+        };
+
+        window.testRead = function() {
+            onValue(ref(database, 'test'), (snapshot) => {
+                const data = snapshot.val();
+                document.getElementById('result').textContent = 'Read successful: ' + JSON.stringify(data);
+            });
+        };
+
+        document.getElementById('status').textContent = 'Connected to Firebase!';
+    </script>
+</body>
+</html>

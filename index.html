@@ -114,17 +114,95 @@
   <button class="nav-btn" id="nav-split" onclick="switchTab('split')"><span class="icon">🤝</span>Split</button>
 </nav>
 
+<!-- Firebase SDK -->
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue, once } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-analytics.js";
+
+  // Your web app's Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyBTeYYuBt5EqZRnhhQfJ2d4rcLI-RP_4GU",
+    authDomain: "mushtari-collection.firebaseapp.com",
+    databaseURL: "https://mushtari-collection-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "mushtari-collection",
+    storageBucket: "mushtari-collection.firebasestorage.app",
+    messagingSenderId: "541245067810",
+    appId: "1:541245067810:web:9d8fa6f8fb35230260307b",
+    measurementId: "G-X2NQZJYJGF"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const database = getDatabase(app);
+  const analytics = getAnalytics(app);
+  
+  // Make database available globally
+  window.database = database;
+  window.ref = ref;
+  window.set = set;
+  window.onValue = onValue;
+  window.once = once;
+</script>
+
 <script>
 var entries=[];
 var clearedMonths={};
-try{entries=JSON.parse(localStorage.getItem('mushtari_v6')||'[]');}catch(e){}
-try{clearedMonths=JSON.parse(localStorage.getItem('mushtari_cleared')||'{}');}catch(e){}
+
+// Load data from Firebase
+function loadData() {
+  once(ref(window.database, 'entries')).then((snapshot) => {
+    entries = snapshot.val() || [];
+    renderDashboard();
+  });
+  
+  once(ref(window.database, 'clearedMonths')).then((snapshot) => {
+    clearedMonths = snapshot.val() || {};
+  });
+}
+
+// Real-time listeners
+onValue(ref(window.database, 'entries'), (snapshot) => {
+  entries = snapshot.val() || [];
+  renderDashboard();
+  renderHistory();
+  renderSplit();
+});
+
+onValue(ref(window.database, 'clearedMonths'), (snapshot) => {
+  clearedMonths = snapshot.val() || {};
+  renderSplit();
+});
+
+// Data migration function (run once in console)
+function migrateToFirebase() {
+  try {
+    const localEntries = JSON.parse(localStorage.getItem('mushtari_v6') || '[]');
+    const localCleared = JSON.parse(localStorage.getItem('mushtari_cleared') || '{}');
+    
+    set(ref(window.database, 'entries'), localEntries);
+    set(ref(window.database, 'clearedMonths'), localCleared);
+    
+    console.log('Migration complete! Data moved to Firebase.');
+  } catch(e) {
+    console.error('Migration failed:', e);
+  }
+}
+
+// Load initial data
+loadData();
 var currentPeriod='weekly';
 var historyPeriod='all';
 var activeFilter='all';
 var searchQuery='';
 
-function save(){try{localStorage.setItem('mushtari_v6',JSON.stringify(entries));localStorage.setItem('mushtari_cleared',JSON.stringify(clearedMonths));}catch(e){}}
+function save(){
+  // Save entries to Firebase
+  set(ref(window.database, 'entries'), entries);
+  // Save cleared months to Firebase
+  set(ref(window.database, 'clearedMonths'), clearedMonths);
+}
 function fmt(n){return 'Rs.'+Math.round(n).toLocaleString('en-IN');}
 
 var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
