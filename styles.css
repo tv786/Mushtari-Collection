@@ -3,8 +3,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 :root{--rg-deep:#8B4A3A;--rg-mid:#C4805A;--rg-light:#D4956A;--rg-pale:#F2D9CC;--rg-card:#fff9f6;--rg-border:#e8cfc0;--rg-text:#5a3228;--rg-muted:#a07060;}
 .header{    display: flex;
     align-items: center;
-    justify-content: space-between; background:#fff9f6;padding:18px 16px 14px;border-bottom:1.5px solid var(--rg-border);text-align:center;position:sticky;top:0;z-index:10;}
-.logo-img{width:30%;max-width:70vw;height:auto;display:block;margin:0; mix-blend-mode: multiply;}
+    justify-content: space-between; background:#fff9f6;padding:14px 16px 14px;border-bottom:1.5px solid var(--rg-border);text-align:center;position:sticky;top:0;z-index:10;}
+.logo-img{width:85px;max-width:70vw;height:auto;display:block;margin:0; mix-blend-mode: multiply;}
 .header-sub{font-size:12px;color:var(--rg-muted);margin-top:2px;letter-spacing:0.5px;}
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff9f6;border-top:1.5px solid var(--rg-border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom);}
 .nav-btn{flex:1;padding:10px 2px 8px;border:none;background:transparent;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--rg-muted);cursor:pointer;font-family:inherit;}
@@ -37,6 +37,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .entry-tag{font-size:11px;background:var(--rg-pale);color:var(--rg-text);padding:3px 7px;border-radius:7px;}
 .entry-date{font-size:11px;color:#bbb;margin-bottom:0;}
 .del-btn{background:#fff0f0;border:none;color:#c0392b;width:34px;height:34px;border-radius:10px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.edit-btn{background:#fff4ee;border:none;color:var(--rg-deep);width:34px;height:34px;border-radius:10px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.edit-mode-banner{background:linear-gradient(135deg,#fff4ee,#fde8d8);border:1.5px solid var(--rg-light);border-radius:12px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;}
+.edit-mode-banner .et{font-size:13px;font-weight:700;color:var(--rg-deep);}
+.edit-mode-banner .ec{background:transparent;border:none;color:var(--rg-muted);font-size:13px;cursor:pointer;font-family:inherit;text-decoration:underline;padding:0;}
 
 /* PAYMENT STATUS */
 .payment-row{display:flex;gap:8px;align-items:center;margin-top:4px;}

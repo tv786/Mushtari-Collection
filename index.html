@@ -36,8 +36,12 @@
 
 <!-- ADD -->
 <div id="sec-add" class="section">
+  <div id="edit-mode-banner" class="edit-mode-banner" style="display:none;">
+    <span class="et">✏️ Editing Entry</span>
+    <button class="ec" onclick="cancelEdit()">Cancel Edit</button>
+  </div>
   <div class="form-card">
-    <div class="form-title">New Sale Entry</div>
+    <div class="form-title" id="form-title">New Sale Entry</div>
     <div class="fgroup"><label>Rida Name / Style</label><input type="text" id="f-name" placeholder="e.g. Floral Pink Rida" autocomplete="off"/></div>
     <div class="cost-divider">Cost Breakdown</div>
     <div class="frow3">
@@ -60,7 +64,7 @@
       </div>
       <input type="file" id="f-image" accept="image/*" style="display:none;" onchange="handleImageSelect(event)"/>
     </div>
-    <button class="save-btn" onclick="addEntry()">Save Entry</button>
+    <button class="save-btn" id="save-btn" onclick="saveEntry()">Save Entry</button>
   </div>
 </div>
 
@@ -120,6 +124,7 @@
 <script defer>
 var entries=[];
 var clearedMonths={};
+var editingId=null;
 
 // Real-time listeners - setup first
 function setupListeners() {
@@ -363,6 +368,7 @@ function entryHTML(e,showDel,query){
     +'<div><div class="entry-name">'+ename+'</div><div class="entry-customer">'+ecust+'</div></div>'
     +'<div style="display:flex;align-items:center;gap:6px;">'
     +'<span class="profit-pill">+'+fmt(profit)+'</span>'
+    +(showDel?'<button class="edit-btn" onclick="editEntry(\''+e.id+'\')">✏️</button>':'')
     +(showDel?'<button class="del-btn" onclick="deleteEntry(\''+e.id+'\')">&#x2715;</button>':'')
     +'</div></div>'
     +'<div class="entry-row">'
@@ -517,7 +523,47 @@ function clearImage(ev){
   document.getElementById('img-clear-btn').style.display='none';
 }
 
-function addEntry(){
+function editEntry(id){
+  var e=entries.find(function(x){return x.id===id;});
+  if(!e)return;
+  editingId=id;
+  document.getElementById('f-name').value=e.name||'';
+  document.getElementById('f-material').value=e.material||'';
+  document.getElementById('f-lace').value=e.lace||'';
+  document.getElementById('f-handwork').value=e.handwork||'';
+  document.getElementById('f-sold').value=e.sold||'';
+  document.getElementById('f-customer').value=e.customer||'';
+  // Restore image if exists
+  var imgEl=document.getElementById('img-preview');
+  if(e.image){
+    imgEl.src=e.image;
+    imgEl.style.display='block';
+    document.getElementById('img-placeholder').style.display='none';
+    document.getElementById('img-clear-btn').style.display='flex';
+  } else {
+    imgEl.src='';imgEl.style.display='none';
+    document.getElementById('img-placeholder').style.display='flex';
+    document.getElementById('img-clear-btn').style.display='none';
+  }
+  document.getElementById('form-title').textContent='Edit Sale Entry';
+  document.getElementById('save-btn').textContent='Update Entry';
+  document.getElementById('edit-mode-banner').style.display='flex';
+  previewProfit();
+  switchTab('add');
+}
+
+function cancelEdit(){
+  editingId=null;
+  ['f-name','f-material','f-lace','f-handwork','f-sold','f-customer'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('profit-preview').classList.remove('show');
+  clearImage({stopPropagation:function(){}});
+  document.getElementById('form-title').textContent='New Sale Entry';
+  document.getElementById('save-btn').textContent='Save Entry';
+  document.getElementById('edit-mode-banner').style.display='none';
+  switchTab('history');
+}
+
+function saveEntry(){
   var name=document.getElementById('f-name').value.trim();
   var material=parseFloat(document.getElementById('f-material').value)||0;
   var lace=parseFloat(document.getElementById('f-lace').value)||0;
@@ -529,13 +575,32 @@ function addEntry(){
   if(!name){alert('Please enter the Rida name.');return;}
   if(!sold){alert('Please enter the sold price.');return;}
   if(!customer){alert('Please enter the customer name.');return;}
-  entries.push({id:Date.now().toString(),sr:entries.length+1,name:name,material:material,lace:lace,handwork:handwork,sold:sold,customer:customer,date:new Date().toISOString(),paymentStatus:'',image:imageData});
+
+  if(editingId){
+    // Update existing entry
+    entries=entries.map(function(e){
+      if(e.id===editingId){
+        return Object.assign({},e,{name:name,material:material,lace:lace,handwork:handwork,sold:sold,customer:customer,image:imageData});
+      }
+      return e;
+    });
+    editingId=null;
+    document.getElementById('form-title').textContent='New Sale Entry';
+    document.getElementById('save-btn').textContent='Save Entry';
+    document.getElementById('edit-mode-banner').style.display='none';
+  } else {
+    // Add new entry
+    entries.push({id:Date.now().toString(),sr:entries.length+1,name:name,material:material,lace:lace,handwork:handwork,sold:sold,customer:customer,date:new Date().toISOString(),paymentStatus:'',image:imageData});
+  }
+
   save();
   ['f-name','f-material','f-lace','f-handwork','f-sold','f-customer'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('profit-preview').classList.remove('show');
   clearImage({stopPropagation:function(){}});
   switchTab('dashboard');
 }
+
+function addEntry(){saveEntry();}
 
 function deleteEntry(id){
   if(!confirm('Delete this entry?'))return;
