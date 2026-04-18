@@ -25,6 +25,14 @@
     <div class="metric-card"><div class="mlabel">Total Cost</div><div class="mval" id="m-cost">Rs.0</div></div>
     <div class="metric-card profit"><div class="mlabel">Net Profit</div><div class="mval" id="m-profit">Rs.0</div></div>
   </div>
+  <div class="cost-analytics">
+    <div class="cost-title">Cost Breakdown Analytics</div>
+    <div class="cost-grid">
+      <div class="cost-card"><div class="clabel">Material</div><div class="cval" id="m-material">Rs.0</div></div>
+      <div class="cost-card"><div class="clabel">Lace</div><div class="cval" id="m-lace">Rs.0</div></div>
+      <div class="cost-card"><div class="clabel">Handwork</div><div class="cval" id="m-handwork">Rs.0</div></div>
+    </div>
+  </div>
   <div class="vaajebat-card">
     <div class="vtop"><div class="vlabel">Vaajebat</div><div class="vbadge" id="vaajebat-badge">1/40 Monthly</div></div>
     <div class="vval" id="m-vaajebat">Rs.0</div>
@@ -323,27 +331,68 @@ function calcVaajebat(period){
 function renderDashboard(){
   var f=filterBy(currentPeriod);
   var revenue=f.reduce(function(s,e){return s+e.sold;},0);
-  var cost=f.reduce(function(s,e){return s+e.material+e.lace+e.handwork;},0);
+  var material=f.reduce(function(s,e){return s+e.material;},0);
+  var lace=f.reduce(function(s,e){return s+e.lace;},0);
+  var handwork=f.reduce(function(s,e){return s+e.handwork;},0);
+  var cost=material+lace+handwork;
   var profit=revenue-cost;
   document.getElementById('m-sales').textContent=f.length;
   document.getElementById('m-revenue').textContent=fmt(revenue);
   document.getElementById('m-cost').textContent=fmt(cost);
   document.getElementById('m-profit').textContent=fmt(profit);
+  document.getElementById('m-material').textContent=fmt(material);
+  document.getElementById('m-lace').textContent=fmt(lace);
+  document.getElementById('m-handwork').textContent=fmt(handwork);
   var v=calcVaajebat(currentPeriod);
   document.getElementById('m-vaajebat').textContent=fmt(v.val);
   document.getElementById('vaajebat-note').textContent=v.note;
   document.getElementById('vaajebat-badge').textContent=v.badge;
   var recent=entries.slice().reverse().slice(0,5);
   var el=document.getElementById('recent-list');
-  if(!recent.length){el.innerHTML='<div class="empty"><div class="eicon">🧾</div>No sales yet. Tap + Add Sale to begin!</div>';return;}
+  if(!recent.length){el.innerHTML='<div class="empty"><div class="eicon">\ud83e\uddee</div>No sales yet. Tap + Add Sale to begin!</div>';return;}
   el.innerHTML=recent.map(function(e){return entryHTML(e,false,'');}).join('');
 }
 
 function togglePayment(id,status){
-  entries=entries.map(function(e){
-    if(e.id===id){e.paymentStatus=e.paymentStatus===status?'':status;}
-    return e;
-  });
+  if(status==='partial'){
+    var entry=entries.find(function(e){return e.id===id;});
+    if(!entry) return;
+    
+    var currentAmount=entry.partialAmount||0;
+    var newAmount=prompt('Enter partial payment amount (Current: '+fmt(currentAmount)+', Total: '+fmt(entry.sold)+'):', currentAmount);
+    
+    if(newAmount===null) return; // User cancelled
+    
+    var amount=parseFloat(newAmount);
+    if(isNaN(amount)||amount<0||amount>entry.sold){
+      alert('Please enter a valid amount between 0 and '+fmt(entry.sold));
+      return;
+    }
+    
+    entries=entries.map(function(e){
+      if(e.id===id){
+        if(amount===0){
+          e.paymentStatus='';
+          delete e.partialAmount;
+        }else if(amount>=entry.sold){
+          e.paymentStatus='paid';
+          delete e.partialAmount;
+        }else{
+          e.paymentStatus='partial';
+          e.partialAmount=amount;
+        }
+      }
+      return e;
+    });
+  }else{
+    entries=entries.map(function(e){
+      if(e.id===id){
+        e.paymentStatus=e.paymentStatus===status?'':status;
+        if(e.paymentStatus!=='partial') delete e.partialAmount;
+      }
+      return e;
+    });
+  }
   save();
   renderHistory();
   renderDashboard();
@@ -358,7 +407,9 @@ function entryHTML(e,showDel,query){
   var esr=query?highlight(String(e.sr),query):e.sr;
   var isPaid=e.paymentStatus==='paid';
   var isDue=e.paymentStatus==='due';
-  var statusBadge=isPaid?'<span class="status-badge status-paid">Paid</span>':isDue?'<span class="status-badge status-due">Due</span>':'';
+  var isPartial=e.paymentStatus==='partial';
+  var partialAmount=e.partialAmount||0;
+  var statusBadge=isPaid?'<span class="status-badge status-paid">Paid</span>':isDue?'<span class="status-badge status-due">Due</span>':isPartial?'<span class="status-badge status-partial">Partial '+fmt(partialAmount)+'</span>':'';
   return '<div class="entry-card">'
     +'<div class="entry-body">'
     +(e.image?'<img class="entry-thumb" src="'+e.image+'" alt="Rida photo" onclick="openImg(\''+e.id+'\')"/>':'')
@@ -368,7 +419,7 @@ function entryHTML(e,showDel,query){
     +'<div><div class="entry-name">'+ename+'</div><div class="entry-customer">'+ecust+'</div></div>'
     +'<div style="display:flex;align-items:center;gap:6px;">'
     +'<span class="profit-pill">+'+fmt(profit)+'</span>'
-    +(showDel?'<button class="edit-btn" onclick="editEntry(\''+e.id+'\')">✏️</button>':'')
+    +(showDel?'<button class="edit-btn" onclick="editEntry(\''+e.id+'\')">&#x270f;</button>':'')
     +(showDel?'<button class="del-btn" onclick="deleteEntry(\''+e.id+'\')">&#x2715;</button>':'')
     +'</div></div>'
     +'<div class="entry-row">'
@@ -381,8 +432,9 @@ function entryHTML(e,showDel,query){
     +'</div>'
     +'</div>'
     +'<div class="payment-row">'
-    +'<button class="pay-btn '+(isPaid?'active-paid':'paid')+'" onclick="togglePayment(\''+e.id+'\',\'paid\')">✓ Paid</button>'
-    +'<button class="pay-btn '+(isDue?'active-due':'due')+'" onclick="togglePayment(\''+e.id+'\',\'due\')">! Due</button>'
+    +'<button class="pay-btn '+(isPaid?'active-paid':'paid')+'" onclick="togglePayment(\''+e.id+'\',\'paid\')">Paid</button>'
+    +'<button class="pay-btn '+(isPartial?'active-partial':'partial')+'" onclick="togglePayment(\''+e.id+'\',\'partial\')">Partial</button>'
+    +'<button class="pay-btn '+(isDue?'active-due':'due')+'" onclick="togglePayment(\''+e.id+'\',\'due\')">Due</button>'
     +'</div>'
     +'</div>';
 }
@@ -398,21 +450,36 @@ function renderHistory(){
   if(list.length>0){
     ha.style.display='block';
     var revenue=list.reduce(function(s,e){return s+e.sold;},0);
-    var cost=list.reduce(function(s,e){return s+e.material+e.lace+e.handwork;},0);
+    var material=list.reduce(function(s,e){return s+e.material;},0);
+    var lace=list.reduce(function(s,e){return s+e.lace;},0);
+    var handwork=list.reduce(function(s,e){return s+e.handwork;},0);
+    var cost=material+lace+handwork;
     var profit=revenue-cost;
     var paidCount=list.filter(function(e){return e.paymentStatus==='paid';}).length;
     var dueCount=list.filter(function(e){return e.paymentStatus==='due'||!e.paymentStatus;}).length;
+    var partialCount=list.filter(function(e){return e.paymentStatus==='partial';}).length;
     var paidAmt=list.filter(function(e){return e.paymentStatus==='paid';}).reduce(function(s,e){return s+e.sold;},0);
     var dueAmt=list.filter(function(e){return e.paymentStatus==='due'||!e.paymentStatus;}).reduce(function(s,e){return s+e.sold;},0);
+    var partialAmt=list.filter(function(e){return e.paymentStatus==='partial';}).reduce(function(s,e){return s+(e.partialAmount||0);},0);
+    var partialTotalAmt=list.filter(function(e){return e.paymentStatus==='partial';}).reduce(function(s,e){return s+e.sold;},0);
     ha.innerHTML='<div class="analytics-bar">'
-      +'<div class="atitle">Analytics — '+list.length+' record'+(list.length!==1?'s':'')+'</div>'
+      +'<div class="atitle">Analytics - '+list.length+' record'+(list.length!==1?'s':'')+'</div>'
       +'<div class="analytics-grid">'
       +'<div class="astat"><div class="av">'+fmt(revenue)+'</div><div class="al">Revenue</div></div>'
       +'<div class="astat"><div class="av">'+fmt(cost)+'</div><div class="al">Cost</div></div>'
       +'<div class="astat green"><div class="av">'+fmt(profit)+'</div><div class="al">Profit</div></div>'
       +'</div>'
+      +'<div class="cost-breakdown">'
+      +'<div class="cb-title">Cost Breakdown</div>'
+      +'<div class="cb-grid">'
+      +'<div class="cb-item"><div class="cbv">'+fmt(material)+'</div><div class="cbl">Material</div></div>'
+      +'<div class="cb-item"><div class="cbv">'+fmt(lace)+'</div><div class="cbl">Lace</div></div>'
+      +'<div class="cb-item"><div class="cbv">'+fmt(handwork)+'</div><div class="cbl">Handwork</div></div>'
+      +'</div>'
+      +'</div>'
       +'<div class="pay-stats">'
       +'<div class="pay-stat p"><div class="pv">'+paidCount+' ('+fmt(paidAmt)+')</div><div class="pl">Paid entries</div></div>'
+      +'<div class="pay-stat partial"><div class="pv">'+partialCount+' ('+fmt(partialAmt)+'/'+fmt(partialTotalAmt)+')</div><div class="pl">Partial entries</div></div>'
       +'<div class="pay-stat d"><div class="pv">'+dueCount+' ('+fmt(dueAmt)+')</div><div class="pl">Due entries</div></div>'
       +'</div>'
       +'</div>';

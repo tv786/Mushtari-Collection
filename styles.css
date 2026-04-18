@@ -46,11 +46,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .payment-row{display:flex;gap:8px;align-items:center;margin-top:4px;}
 .pay-btn{flex:1;padding:8px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;border:1.5px solid;transition:all .15s;}
 .pay-btn.paid{background:#e8f5ee;color:#1e6e42;border-color:#9FE1CB;}
+.pay-btn.partial{background:#fff9e6;color:#f39c12;border-color:#f8c471;}
 .pay-btn.due{background:#fff4ee;color:var(--rg-deep);border-color:var(--rg-light);}
 .pay-btn.active-paid{background:#1e6e42;color:#fff;border-color:#1e6e42;}
+.pay-btn.active-partial{background:#f39c12;color:#fff;border-color:#f39c12;}
 .pay-btn.active-due{background:var(--rg-deep);color:#fff;border-color:var(--rg-deep);}
 .status-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-left:4px;}
 .status-paid{background:#e8f5ee;color:#1e6e42;}
+.status-partial{background:#fff9e6;color:#f39c12;}
 .status-due{background:#fff0f0;color:#c0392b;}
 
 /* FORM */
@@ -98,6 +101,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .pay-stat .pv{font-size:15px;font-weight:700;}
 .pay-stat .pl{font-size:10px;margin-top:2px;}
 .pay-stat.p{background:#e8f5ee;color:#1e6e42;}
+.pay-stat.partial{background:#fff9e6;color:#f39c12;}
 .pay-stat.d{background:#fff0f0;color:#c0392b;}
 
 /* SPLIT PAGE */
@@ -134,6 +138,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .img-upload-placeholder{display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none;}
 .img-preview-thumb{width:100%;height:100%;object-fit:cover;border-radius:12px;display:block;}
 .img-clear-btn{position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.55);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;}
+
+/* COST ANALYTICS */
+.cost-analytics{background:var(--rg-card);border-radius:14px;padding:16px;margin-bottom:14px;border:1px solid var(--rg-border);}
+.cost-title{font-size:13px;font-weight:600;color:var(--rg-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;}
+.cost-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.cost-card{background:#fdf6f2;border-radius:10px;padding:12px;text-align:center;}
+.cost-card .clabel{font-size:11px;color:var(--rg-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px;}
+.cost-card .cval{font-size:16px;font-weight:700;color:var(--rg-deep);}
+
+/* COST BREAKDOWN IN HISTORY */
+.cost-breakdown{background:#fdf6f2;border-radius:10px;padding:12px;margin:10px 0;}
+.cb-title{font-size:12px;font-weight:600;color:var(--rg-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;}
+.cb-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.cb-item{text-align:center;}
+.cb-item .cbv{font-size:14px;font-weight:700;color:var(--rg-deep);}
+.cb-item .cbl{font-size:10px;color:var(--rg-muted);margin-top:2px;}
 
 /* ENTRY THUMBNAIL */
 .entry-thumb{width:80px;height:80px;object-fit:cover;border-radius:10px;cursor:zoom-in;display:block;flex-shrink:0;}
