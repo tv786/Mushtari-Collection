@@ -21,21 +21,21 @@
   </div>
   <div class="metrics-grid">
     <div class="metric-card"><div class="mlabel">Total Sales</div><div class="mval" id="m-sales">0</div></div>
-    <div class="metric-card"><div class="mlabel">Revenue</div><div class="mval" id="m-revenue">Rs.0</div></div>
-    <div class="metric-card"><div class="mlabel">Total Cost</div><div class="mval" id="m-cost">Rs.0</div></div>
-    <div class="metric-card profit"><div class="mlabel">Net Profit</div><div class="mval" id="m-profit">Rs.0</div></div>
+    <div class="metric-card"><div class="mlabel">Revenue</div><div class="mval" id="m-revenue">₹0</div></div>
+    <div class="metric-card"><div class="mlabel">Total Cost</div><div class="mval" id="m-cost">₹0</div></div>
+    <div class="metric-card profit"><div class="mlabel">Net Profit</div><div class="mval" id="m-profit">₹0</div></div>
   </div>
   <div class="cost-analytics">
     <div class="cost-title">Cost Breakdown Analytics</div>
     <div class="cost-grid">
-      <div class="cost-card"><div class="clabel">Material</div><div class="cval" id="m-material">Rs.0</div></div>
-      <div class="cost-card"><div class="clabel">Lace</div><div class="cval" id="m-lace">Rs.0</div></div>
-      <div class="cost-card"><div class="clabel">Handwork</div><div class="cval" id="m-handwork">Rs.0</div></div>
+      <div class="cost-card"><div class="clabel">Material</div><div class="cval" id="m-material">₹0</div></div>
+      <div class="cost-card"><div class="clabel">Lace</div><div class="cval" id="m-lace">₹0</div></div>
+      <div class="cost-card"><div class="clabel">Handwork</div><div class="cval" id="m-handwork">₹0</div></div>
     </div>
   </div>
   <div class="vaajebat-card">
     <div class="vtop"><div class="vlabel">Vaajebat</div><div class="vbadge" id="vaajebat-badge">1/40 Monthly</div></div>
-    <div class="vval" id="m-vaajebat">Rs.0</div>
+    <div class="vval" id="m-vaajebat">₹0</div>
     <div class="vnote" id="vaajebat-note">1/40th of this month's profit</div>
   </div>
   <div class="section-label">Recent Sales</div>
@@ -53,11 +53,11 @@
     <div class="fgroup"><label>Rida Name / Style</label><input type="text" id="f-name" placeholder="e.g. Floral Pink Rida" autocomplete="off"/></div>
     <div class="cost-divider">Cost Breakdown</div>
     <div class="frow3">
-      <div class="fgroup"><label>Material</label><input type="number" id="f-material" placeholder="Rs.0" inputmode="numeric" oninput="previewProfit()"/></div>
-      <div class="fgroup"><label>Lace</label><input type="number" id="f-lace" placeholder="Rs.0" inputmode="numeric" oninput="previewProfit()"/></div>
-      <div class="fgroup"><label>Handwork</label><input type="number" id="f-handwork" placeholder="Rs.0" inputmode="numeric" oninput="previewProfit()"/></div>
+      <div class="fgroup"><label>Material</label><input type="number" id="f-material" placeholder="₹0" inputmode="numeric" oninput="previewProfit()"/></div>
+      <div class="fgroup"><label>Lace</label><input type="number" id="f-lace" placeholder="₹0" inputmode="numeric" oninput="previewProfit()"/></div>
+      <div class="fgroup"><label>Handwork</label><input type="number" id="f-handwork" placeholder="₹0" inputmode="numeric" oninput="previewProfit()"/></div>
     </div>
-    <div class="fgroup"><label>Sold At Price</label><input type="number" id="f-sold" placeholder="Rs. 0" inputmode="numeric" oninput="previewProfit()"/></div>
+    <div class="fgroup"><label>Sold At Price</label><input type="number" id="f-sold" placeholder="₹ 0" inputmode="numeric" oninput="previewProfit()"/></div>
     <div class="profit-preview" id="profit-preview"></div>
     <div class="fgroup" style="margin-top:14px;"><label>Customer Name</label><input type="text" id="f-customer" placeholder="Customer name" autocomplete="off"/></div>
     <div class="fgroup" style="margin-top:14px;">
@@ -90,6 +90,7 @@
     <button class="chip" onclick="setFilter('sr',this)">Sr. No.</button>
     <button class="chip" onclick="setFilter('date',this)">By Date</button>
     <button class="chip" onclick="setFilter('paid',this)">Paid</button>
+    <button class="chip" onclick="setFilter('partial',this)">Partial</button>
     <button class="chip" onclick="setFilter('due',this)">Due</button>
   </div>
   <div class="date-filter" id="date-filter">
@@ -112,7 +113,7 @@
   <div class="split-header">
     <h2>Profit Split</h2>
     <p>Monthly profit between Arwa &amp; Umme Kulsum</p>
-    <div class="split-total" id="split-pending-total">Rs.0</div>
+    <div class="split-total" id="split-pending-total">₹0</div>
     <div style="font-size:12px;opacity:0.85;" id="split-pending-label">pending to be cleared</div>
   </div>
   <div id="pending-months-banner"></div>
@@ -204,7 +205,7 @@ function save(){
   // Save cleared months to Firebase
   window.set(window.ref(window.database, 'clearedMonths'), clearedMonths);
 }
-function fmt(n){return 'Rs.'+Math.round(n).toLocaleString('en-IN');}
+function fmt(n){return '₹'+Math.round(n).toLocaleString('en-IN');}
 
 var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -278,10 +279,11 @@ function filterByDate(list){
   });
 }
 function filterBySearch(list){
-  if(!searchQuery&&activeFilter!=='paid'&&activeFilter!=='due') return list;
+  if(!searchQuery&&activeFilter!=='paid'&&activeFilter!=='due'&&activeFilter!=='partial') return list;
   var q=searchQuery.toLowerCase();
   return list.filter(function(e){
     if(activeFilter==='paid') return e.paymentStatus==='paid';
+    if(activeFilter==='partial') return e.paymentStatus==='partial';
     if(activeFilter==='due') return e.paymentStatus==='due'||!e.paymentStatus;
     if(activeFilter==='name') return e.name.toLowerCase().includes(q);
     if(activeFilter==='customer') return e.customer.toLowerCase().includes(q);
@@ -504,7 +506,7 @@ function renderSplit(){
   var keys=Object.keys(monthMap).sort().reverse();
   if(!keys.length){
     document.getElementById('split-list').innerHTML='<div class="empty"><div class="eicon">📅</div>No data yet. Add some sales first!</div>';
-    document.getElementById('split-pending-total').textContent='Rs.0';
+    document.getElementById('split-pending-total').textContent='₹0';
     document.getElementById('split-pending-label').textContent='pending to be cleared';
     return;
   }
