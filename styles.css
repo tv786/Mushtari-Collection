@@ -81,6 +81,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .filter-chips::-webkit-scrollbar{display:none;}
 .chip{padding:7px 14px;border:1.5px solid var(--rg-border);border-radius:20px;font-size:13px;font-weight:500;color:var(--rg-muted);background:#fff9f6;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0;}
 .chip.active{background:linear-gradient(135deg,var(--rg-mid),var(--rg-deep));color:#fff;border-color:transparent;}
+.chip.export-btn{background:#e8f5ee;color:#1e6e42;border-color:#9FE1CB;font-weight:600;}
+.chip.export-btn:hover{background:#d4edd8;}
 .date-filter{display:none;margin-bottom:12px;gap:10px;}
 .date-filter.show{display:flex;}
 .date-filter input{flex:1;padding:10px 12px;border:1.5px solid var(--rg-border);border-radius:12px;font-size:14px;font-family:inherit;color:#1a1a1a;background:#fff;outline:none;}

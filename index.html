@@ -92,6 +92,7 @@
     <button class="chip" onclick="setFilter('paid',this)">Paid</button>
     <button class="chip" onclick="setFilter('partial',this)">Partial</button>
     <button class="chip" onclick="setFilter('due',this)">Due</button>
+    <button class="chip export-btn" onclick="exportToCSV()">📥 Export CSV</button>
   </div>
   <div class="date-filter" id="date-filter">
     <input type="date" id="date-from" onchange="renderHistory()"/>
@@ -675,6 +676,58 @@ function deleteEntry(id){
   if(!confirm('Delete this entry?'))return;
   entries=entries.filter(function(e){return e.id!==id;});
   save();renderHistory();renderDashboard();
+}
+
+function exportToCSV(){
+  var list=entries.slice().reverse();
+  if(activeFilter==='date') list=filterByDate(list);
+  else list=filterByPeriod(list,historyPeriod);
+  list=filterBySearch(list);
+  
+  if(list.length===0){
+    alert('No records to export for the current filter!');
+    return;
+  }
+  
+  var headers=['Sr. No.','Rida Name','Customer','Date','Material','Lace','Handwork','Sold Price','Profit','Payment Status','Partial Amount'];
+  var csvContent=headers.join(',')+'\n';
+  
+  list.forEach(function(e){
+    var profit=e.sold-e.material-e.lace-e.handwork;
+    var paymentStatus=e.paymentStatus||'';
+    var partialAmount=e.partialAmount||0;
+    var d=new Date(e.date);
+    var dateStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    
+    var row=[
+      e.sr,
+      '"'+e.name+'"', // Quote to handle commas in names
+      '"'+e.customer+'"', // Quote to handle commas in names
+      '"'+dateStr+'"', // Quote date to prevent Excel formatting issues
+      e.material,
+      e.lace,
+      e.handwork,
+      e.sold,
+      profit,
+      paymentStatus,
+      partialAmount
+    ];
+    
+    csvContent+=row.join(',')+'\n';
+  });
+  
+  var blob=new Blob([csvContent],{type:'text/csv;charset=utf-8;'});
+  var link=document.createElement('a');
+  var url=URL.createObjectURL(blob);
+  
+  var filename='rida_sales_'+new Date().toISOString().slice(0,10)+'.csv';
+  
+  link.setAttribute('href',url);
+  link.setAttribute('download',filename);
+  link.style.visibility='hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 function openImg(id){
