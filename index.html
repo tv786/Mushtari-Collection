@@ -4,6 +4,46 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
 <link rel="stylesheet" href="styles.css"/>
+<style>
+/* CSV IMPORT MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;align-items:flex-end;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal-sheet{background:#fff9f6;border-radius:22px 22px 0 0;padding:24px 18px 36px;width:100%;max-width:540px;max-height:85vh;overflow-y:auto;}
+.modal-title{font-size:18px;font-weight:700;color:var(--rg-deep);margin-bottom:6px;}
+.modal-sub{font-size:13px;color:var(--rg-muted);margin-bottom:18px;line-height:1.5;}
+.modal-close{position:absolute;top:16px;right:16px;background:var(--rg-pale);border:none;color:var(--rg-deep);width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;}
+.csv-drop-zone{border:2px dashed var(--rg-border);border-radius:14px;padding:32px 16px;text-align:center;cursor:pointer;background:#fff;transition:border-color .15s;margin-bottom:14px;}
+.csv-drop-zone:hover,.csv-drop-zone.dragover{border-color:var(--rg-mid);}
+.csv-drop-zone .dicon{font-size:36px;margin-bottom:8px;}
+.csv-drop-zone p{font-size:14px;color:var(--rg-muted);}
+.import-preview{background:#f8f8f8;border-radius:12px;padding:14px;margin-bottom:14px;display:none;}
+.import-preview.show{display:block;}
+.import-preview-title{font-size:13px;font-weight:600;color:var(--rg-deep);margin-bottom:8px;}
+.import-row{font-size:12px;color:#555;padding:4px 0;border-bottom:1px solid #eee;}
+.import-row:last-child{border-bottom:none;}
+.import-stats{display:flex;gap:10px;margin-bottom:14px;}
+.import-stat{flex:1;background:var(--rg-pale);border-radius:10px;padding:10px;text-align:center;}
+.import-stat .iv{font-size:18px;font-weight:700;color:var(--rg-deep);}
+.import-stat .il{font-size:11px;color:var(--rg-muted);margin-top:2px;}
+.import-warn{background:#fff9e6;border:1px solid #f8c471;border-radius:10px;padding:10px 12px;font-size:12px;color:#a07010;margin-bottom:14px;display:none;}
+.import-warn.show{display:block;}
+.import-btn{width:100%;padding:15px;background:linear-gradient(135deg,var(--rg-mid),var(--rg-deep));color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;display:none;}
+.import-btn.show{display:block;}
+.import-btn:disabled{opacity:0.6;cursor:default;}
+.cancel-btn{width:100%;padding:13px;background:var(--rg-pale);color:var(--rg-deep);border:none;border-radius:14px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:10px;}
+.csv-format-hint{background:var(--rg-card);border-radius:10px;padding:12px;font-size:11px;color:var(--rg-muted);line-height:1.6;border:1px solid var(--rg-border);}
+.csv-format-hint code{background:var(--rg-pale);padding:1px 4px;border-radius:4px;font-family:monospace;color:var(--rg-deep);}
+
+/* BACKUP BUTTON */
+.backup-chip{background:#e8f0ff;color:#2356b8;border-color:#a8c0f0;font-weight:600;}
+.backup-chip:hover{background:#d4e0f8;}
+
+/* TOAST */
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:#1a1a1a;color:#fff;padding:12px 20px;border-radius:30px;font-size:14px;font-weight:500;z-index:500;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.success{background:#1e6e42;}
+.toast.error{background:#c0392b;}
+</style>
 </head>
 <body>
 
@@ -93,6 +133,8 @@
     <button class="chip" onclick="setFilter('partial',this)">Partial</button>
     <button class="chip" onclick="setFilter('due',this)">Due</button>
     <button class="chip export-btn" onclick="exportToCSV()">📥 Export CSV</button>
+    <button class="chip backup-chip" onclick="window.db_backupNow()">🛡️ Backup JSON</button>
+    <button class="chip export-btn" onclick="openImportModal()" style="background:#fff4ee;color:var(--rg-deep);border-color:var(--rg-light);">📤 Import CSV</button>
   </div>
   <div class="date-filter" id="date-filter">
     <input type="date" id="date-from" onchange="renderHistory()"/>
@@ -128,621 +170,753 @@
   <button class="nav-btn" id="nav-split" onclick="switchTab('split')"><span class="icon">🤝</span>Split</button>
 </nav>
 
-<!-- Firebase SDK -->
-<script type="module" src="firebase-init.js"></script>
+<!-- CSV IMPORT MODAL -->
+<div class="modal-overlay" id="import-modal" onclick="closeImportModalOutside(event)">
+  <div class="modal-sheet" style="position:relative;">
+    <div class="modal-title">📤 Import CSV</div>
+    <div class="modal-sub">Import entries from a CSV file exported from this app. Existing entries with the same Sr. No. will be skipped to avoid duplicates.</div>
 
-<script defer>
-var entries=[];
-var clearedMonths={};
-var editingId=null;
+    <div class="csv-format-hint" style="margin-bottom:14px;">
+      <strong>Expected CSV columns:</strong><br/>
+      <code>Sr. No.</code>, <code>Rida Name</code>, <code>Customer</code>, <code>Date</code>, <code>Material</code>, <code>Lace</code>, <code>Handwork</code>, <code>Sold Price</code>, <code>Profit</code>, <code>Payment Status</code>, <code>Partial Amount</code>
+    </div>
 
-// Real-time listeners - setup first
-function setupListeners() {
-  window.onValue(window.ref(window.database, 'entries'), (snapshot) => {
-    entries = snapshot.val() || [];
-    renderDashboard();
-    renderHistory();
-    renderSplit();
-  });
+    <div class="csv-drop-zone" id="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()">
+      <div class="dicon">📂</div>
+      <p>Tap to choose a CSV file</p>
+      <p style="font-size:12px;margin-top:4px;">or drag &amp; drop here</p>
+    </div>
+    <input type="file" id="csv-file-input" accept=".csv,text/csv" style="display:none;" onchange="handleCSVFile(event)"/>
 
-  window.onValue(window.ref(window.database, 'clearedMonths'), (snapshot) => {
-    clearedMonths = snapshot.val() || {};
-    renderSplit();
-  });
-}
+    <div class="import-warn" id="import-warn"></div>
 
-// Load data from Firebase
-function loadData() {
-  window.get(window.ref(window.database, 'entries')).then((snapshot) => {
-    entries = snapshot.val() || [];
-    renderDashboard();
-  }).catch(err => {
-    console.error('Error loading entries:', err);
-  });
-  
-  window.get(window.ref(window.database, 'clearedMonths')).then((snapshot) => {
-    clearedMonths = snapshot.val() || {};
-  }).catch(err => {
-    console.error('Error loading clearedMonths:', err);
-  });
-}
+    <div class="import-preview" id="import-preview">
+      <div class="import-preview-title">Preview (first 5 rows)</div>
+      <div id="import-preview-rows"></div>
+    </div>
 
-// Data migration function (run once in console)
-function migrateToFirebase() {
-  try {
-    const localEntries = JSON.parse(localStorage.getItem('mushtari_v6') || '[]');
-    const localCleared = JSON.parse(localStorage.getItem('mushtari_cleared') || '{}');
-    
-    window.set(window.ref(window.database, 'entries'), localEntries);
-    window.set(window.ref(window.database, 'clearedMonths'), localCleared);
-    
-    console.log('Migration complete! Data moved to Firebase.');
-  } catch(e) {
-    console.error('Migration failed:', e);
-  }
-}
+    <div class="import-stats" id="import-stats" style="display:none;">
+      <div class="import-stat"><div class="iv" id="stat-total">0</div><div class="il">Total rows</div></div>
+      <div class="import-stat"><div class="iv" id="stat-new">0</div><div class="il">New entries</div></div>
+      <div class="import-stat"><div class="iv" id="stat-skip">0</div><div class="il">Skipped (dup)</div></div>
+    </div>
 
-// Initialize when Firebase is ready
-if (window.database) {
-  setupListeners();
-  loadData();
-} else {
-  // Wait for firebase-init.js to load
-  document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(() => {
-      setupListeners();
-      loadData();
-    }, 500);
-  });
-}
-var currentPeriod='weekly';
-var historyPeriod='all';
-var activeFilter='all';
-var searchQuery='';
+    <button class="import-btn" id="do-import-btn" onclick="doImport()">Import Entries</button>
+    <button class="cancel-btn" onclick="closeImportModal()">Cancel</button>
+  </div>
+</div>
 
-function save(){
-  // Save entries to Firebase
-  window.set(window.ref(window.database, 'entries'), entries);
-  // Save cleared months to Firebase
-  window.set(window.ref(window.database, 'clearedMonths'), clearedMonths);
-}
-function fmt(n){return '₹'+Math.round(n).toLocaleString('en-IN');}
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
 
-var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
-
-function switchTab(tab){
-  ['dashboard','add','history','split'].forEach(function(t){
-    document.getElementById('sec-'+t).classList.toggle('active',t===tab);
-    document.getElementById('nav-'+t).classList.toggle('active',t===tab);
-  });
-  if(tab==='dashboard') renderDashboard();
-  if(tab==='history') renderHistory();
-  if(tab==='split') renderSplit();
-}
-
-function setPeriod(p,el){
-  currentPeriod=p;
-  document.querySelectorAll('#sec-dashboard .period-btn').forEach(function(b){b.classList.remove('active');});
-  el.classList.add('active');
-  renderDashboard();
-}
-
-function setHistoryPeriod(p,el){
-  historyPeriod=p;
-  document.querySelectorAll('#history-period-row .period-btn').forEach(function(b){b.classList.remove('active');});
-  el.classList.add('active');
-  renderHistory();
-}
-
-function setFilter(f,el){
-  activeFilter=f;
-  document.querySelectorAll('.filter-chips .chip').forEach(function(b){b.classList.remove('active');});
-  el.classList.add('active');
-  var df=document.getElementById('date-filter');
-  var pr=document.getElementById('history-period-row');
-  if(f==='date'){df.classList.add('show');pr.style.display='none';}
-  else{df.classList.remove('show');pr.style.display='flex';}
-  renderHistory();
-}
-
-function onSearchInput(){
-  searchQuery=document.getElementById('search-input').value.trim();
-  var cb=document.getElementById('clear-btn');
-  searchQuery.length>0?cb.classList.add('show'):cb.classList.remove('show');
-  renderHistory();
-}
-function clearSearch(){
-  document.getElementById('search-input').value='';
-  searchQuery='';
-  document.getElementById('clear-btn').classList.remove('show');
-  renderHistory();
-}
-
-function filterByPeriod(list,period){
-  var now=new Date();
-  if(period==='all') return list;
-  return list.filter(function(e){
-    var d=new Date(e.date);
-    if(period==='weekly'){var w=new Date(now);w.setDate(now.getDate()-7);return d>=w;}
-    if(period==='monthly'){return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}
-    if(period==='yearly'){return d.getFullYear()===now.getFullYear();}
-    return true;
-  });
-}
-function filterByDate(list){
-  var from=document.getElementById('date-from').value;
-  var to=document.getElementById('date-to').value;
-  return list.filter(function(e){
-    var d=new Date(e.date);
-    if(from&&d<new Date(from))return false;
-    if(to){var t=new Date(to);t.setHours(23,59,59);if(d>t)return false;}
-    return true;
-  });
-}
-function filterBySearch(list){
-  if(!searchQuery&&activeFilter!=='paid'&&activeFilter!=='due'&&activeFilter!=='partial') return list;
-  var q=searchQuery.toLowerCase();
-  return list.filter(function(e){
-    if(activeFilter==='paid') return e.paymentStatus==='paid';
-    if(activeFilter==='partial') return e.paymentStatus==='partial';
-    if(activeFilter==='due') return e.paymentStatus==='due'||!e.paymentStatus;
-    if(activeFilter==='name') return e.name.toLowerCase().includes(q);
-    if(activeFilter==='customer') return e.customer.toLowerCase().includes(q);
-    if(activeFilter==='sr') return String(e.sr).includes(q);
-    return e.name.toLowerCase().includes(q)||e.customer.toLowerCase().includes(q)||String(e.sr).includes(q)||e.date.includes(q);
-  });
-}
-function highlight(text,query){
-  if(!query) return String(text);
-  var esc=query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-  return String(text).replace(new RegExp('('+esc+')','gi'),'<span class="highlight">$1</span>');
-}
-
-function filterBy(period){
-  var now=new Date();
-  return entries.filter(function(e){
-    var d=new Date(e.date);
-    if(period==='weekly'){var w=new Date(now);w.setDate(now.getDate()-7);return d>=w;}
-    if(period==='monthly'){return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}
-    return d.getFullYear()===now.getFullYear();
-  });
-}
-
-function calcVaajebat(period){
-  var now=new Date();
-  if(period==='weekly'){
-    var w=new Date(now);w.setDate(now.getDate()-7);
-    var f=entries.filter(function(e){return new Date(e.date)>=w;});
-    var p=f.reduce(function(s,e){return s+e.sold-e.material-e.lace-e.handwork;},0);
-    return {val:p>0?p/40:0,note:"1/40th of this week's profit",badge:'1/40 Weekly'};
-  }
-  if(period==='monthly'){
-    var f2=entries.filter(function(e){var d=new Date(e.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
-    var p2=f2.reduce(function(s,e){return s+e.sold-e.material-e.lace-e.handwork;},0);
-    return {val:p2>0?p2/40:0,note:"1/40th of this month's profit",badge:'1/40 Monthly'};
-  }
-  var mm={};
-  entries.filter(function(e){return new Date(e.date).getFullYear()===now.getFullYear();}).forEach(function(e){
-    var d=new Date(e.date);var k=d.getFullYear()+'-'+d.getMonth();
-    if(!mm[k])mm[k]=0;mm[k]+=e.sold-e.material-e.lace-e.handwork;
-  });
-  var total=0;Object.keys(mm).forEach(function(k){if(mm[k]>0)total+=mm[k]/40;});
-  var months=Object.keys(mm).length;
-  return {val:total,note:'Sum of 1/40th from each month ('+months+' month'+(months!==1?'s':'')+')',badge:'1/40 Per Month'};
-}
-
-function renderDashboard(){
-  var f=filterBy(currentPeriod);
-  var revenue=f.reduce(function(s,e){return s+e.sold;},0);
-  var material=f.reduce(function(s,e){return s+e.material;},0);
-  var lace=f.reduce(function(s,e){return s+e.lace;},0);
-  var handwork=f.reduce(function(s,e){return s+e.handwork;},0);
-  var cost=material+lace+handwork;
-  var profit=revenue-cost;
-  document.getElementById('m-sales').textContent=f.length;
-  document.getElementById('m-revenue').textContent=fmt(revenue);
-  document.getElementById('m-cost').textContent=fmt(cost);
-  document.getElementById('m-profit').textContent=fmt(profit);
-  document.getElementById('m-material').textContent=fmt(material);
-  document.getElementById('m-lace').textContent=fmt(lace);
-  document.getElementById('m-handwork').textContent=fmt(handwork);
-  var v=calcVaajebat(currentPeriod);
-  document.getElementById('m-vaajebat').textContent=fmt(v.val);
-  document.getElementById('vaajebat-note').textContent=v.note;
-  document.getElementById('vaajebat-badge').textContent=v.badge;
-  var recent=entries.slice().reverse().slice(0,5);
-  var el=document.getElementById('recent-list');
-  if(!recent.length){el.innerHTML='<div class="empty"><div class="eicon">\ud83e\uddee</div>No sales yet. Tap + Add Sale to begin!</div>';return;}
-  el.innerHTML=recent.map(function(e){return entryHTML(e,false,'');}).join('');
-}
-
-function togglePayment(id,status){
-  if(status==='partial'){
-    var entry=entries.find(function(e){return e.id===id;});
-    if(!entry) return;
-    
-    var currentAmount=entry.partialAmount||0;
-    var newAmount=prompt('Enter partial payment amount (Current: '+fmt(currentAmount)+', Total: '+fmt(entry.sold)+'):', currentAmount);
-    
-    if(newAmount===null) return; // User cancelled
-    
-    var amount=parseFloat(newAmount);
-    if(isNaN(amount)||amount<0||amount>entry.sold){
-      alert('Please enter a valid amount between 0 and '+fmt(entry.sold));
-      return;
-    }
-    
-    entries=entries.map(function(e){
-      if(e.id===id){
-        if(amount===0){
-          e.paymentStatus='';
-          delete e.partialAmount;
-        }else if(amount>=entry.sold){
-          e.paymentStatus='paid';
-          delete e.partialAmount;
-        }else{
-          e.paymentStatus='partial';
-          e.partialAmount=amount;
-        }
-      }
-      return e;
-    });
-  }else{
-    entries=entries.map(function(e){
-      if(e.id===id){
-        e.paymentStatus=e.paymentStatus===status?'':status;
-        if(e.paymentStatus!=='partial') delete e.partialAmount;
-      }
-      return e;
-    });
-  }
-  save();
-  renderHistory();
-  renderDashboard();
-}
-
-function entryHTML(e,showDel,query){
-  var profit=e.sold-e.material-e.lace-e.handwork;
-  var d=new Date(e.date);
-  var dateStr=d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear();
-  var ename=query?highlight(e.name,query):e.name;
-  var ecust=query?highlight(e.customer,query):e.customer;
-  var esr=query?highlight(String(e.sr),query):e.sr;
-  var isPaid=e.paymentStatus==='paid';
-  var isDue=e.paymentStatus==='due';
-  var isPartial=e.paymentStatus==='partial';
-  var partialAmount=e.partialAmount||0;
-  var statusBadge=isPaid?'<span class="status-badge status-paid">Paid</span>':isDue?'<span class="status-badge status-due">Due</span>':isPartial?'<span class="status-badge status-partial">Partial '+fmt(partialAmount)+'</span>':'';
-  return '<div class="entry-card">'
-    +'<div class="entry-body">'
-    +(e.image?'<img class="entry-thumb" src="'+e.image+'" alt="Rida photo" onclick="openImg(\''+e.id+'\')"/>':'')
-    +'<div class="entry-details">'
-    +'<div class="entry-sr">Sr. '+esr+statusBadge+'</div>'
-    +'<div class="entry-top">'
-    +'<div><div class="entry-name">'+ename+'</div><div class="entry-customer">'+ecust+'</div></div>'
-    +'<div style="display:flex;align-items:center;gap:6px;">'
-    +'<span class="profit-pill">+'+fmt(profit)+'</span>'
-    +(showDel?'<button class="edit-btn" onclick="editEntry(\''+e.id+'\')">&#x270f;</button>':'')
-    +(showDel?'<button class="del-btn" onclick="deleteEntry(\''+e.id+'\')">&#x2715;</button>':'')
-    +'</div></div>'
-    +'<div class="entry-row">'
-    +'<span class="entry-tag">Mat: '+fmt(e.material)+'</span>'
-    +'<span class="entry-tag">Lace: '+fmt(e.lace)+'</span>'
-    +'<span class="entry-tag">HW: '+fmt(e.handwork)+'</span>'
-    +'<span class="entry-tag">Sold: '+fmt(e.sold)+'</span>'
-    +'</div>'
-    +'<div class="entry-date">'+dateStr+'</div>'
-    +'</div>'
-    +'</div>'
-    +'<div class="payment-row">'
-    +'<button class="pay-btn '+(isPaid?'active-paid':'paid')+'" onclick="togglePayment(\''+e.id+'\',\'paid\')">Paid</button>'
-    +'<button class="pay-btn '+(isPartial?'active-partial':'partial')+'" onclick="togglePayment(\''+e.id+'\',\'partial\')">Partial</button>'
-    +'<button class="pay-btn '+(isDue?'active-due':'due')+'" onclick="togglePayment(\''+e.id+'\',\'due\')">Due</button>'
-    +'</div>'
-    +'</div>';
-}
-
-function renderHistory(){
-  var list=entries.slice().reverse();
-  if(activeFilter==='date') list=filterByDate(list);
-  else list=filterByPeriod(list,historyPeriod);
-  list=filterBySearch(list);
-
-  // Analytics
-  var ha=document.getElementById('history-analytics');
-  if(list.length>0){
-    ha.style.display='block';
-    var revenue=list.reduce(function(s,e){return s+e.sold;},0);
-    var material=list.reduce(function(s,e){return s+e.material;},0);
-    var lace=list.reduce(function(s,e){return s+e.lace;},0);
-    var handwork=list.reduce(function(s,e){return s+e.handwork;},0);
-    var cost=material+lace+handwork;
-    var profit=revenue-cost;
-    var paidCount=list.filter(function(e){return e.paymentStatus==='paid';}).length;
-    var dueCount=list.filter(function(e){return e.paymentStatus==='due'||!e.paymentStatus;}).length;
-    var partialCount=list.filter(function(e){return e.paymentStatus==='partial';}).length;
-    var paidAmt=list.filter(function(e){return e.paymentStatus==='paid';}).reduce(function(s,e){return s+e.sold;},0);
-    var dueAmt=list.filter(function(e){return e.paymentStatus==='due'||!e.paymentStatus;}).reduce(function(s,e){return s+e.sold;},0);
-    var partialAmt=list.filter(function(e){return e.paymentStatus==='partial';}).reduce(function(s,e){return s+(e.partialAmount||0);},0);
-    var partialTotalAmt=list.filter(function(e){return e.paymentStatus==='partial';}).reduce(function(s,e){return s+e.sold;},0);
-    ha.innerHTML='<div class="analytics-bar">'
-      +'<div class="atitle">Analytics - '+list.length+' record'+(list.length!==1?'s':'')+'</div>'
-      +'<div class="analytics-grid">'
-      +'<div class="astat"><div class="av">'+fmt(revenue)+'</div><div class="al">Revenue</div></div>'
-      +'<div class="astat"><div class="av">'+fmt(cost)+'</div><div class="al">Cost</div></div>'
-      +'<div class="astat green"><div class="av">'+fmt(profit)+'</div><div class="al">Profit</div></div>'
-      +'</div>'
-      +'<div class="cost-breakdown">'
-      +'<div class="cb-title">Cost Breakdown</div>'
-      +'<div class="cb-grid">'
-      +'<div class="cb-item"><div class="cbv">'+fmt(material)+'</div><div class="cbl">Material</div></div>'
-      +'<div class="cb-item"><div class="cbv">'+fmt(lace)+'</div><div class="cbl">Lace</div></div>'
-      +'<div class="cb-item"><div class="cbv">'+fmt(handwork)+'</div><div class="cbl">Handwork</div></div>'
-      +'</div>'
-      +'</div>'
-      +'<div class="pay-stats">'
-      +'<div class="pay-stat p"><div class="pv">'+paidCount+' ('+fmt(paidAmt)+')</div><div class="pl">Paid entries</div></div>'
-      +'<div class="pay-stat partial"><div class="pv">'+partialCount+' ('+fmt(partialAmt)+'/'+fmt(partialTotalAmt)+')</div><div class="pl">Partial entries</div></div>'
-      +'<div class="pay-stat d"><div class="pv">'+dueCount+' ('+fmt(dueAmt)+')</div><div class="pl">Due entries</div></div>'
-      +'</div>'
-      +'</div>';
-  } else { ha.style.display='none'; }
-
-  var rc=document.getElementById('results-count');
-  rc.textContent=list.length>0?list.length+' result'+(list.length!==1?'s':'')+(searchQuery?' for "'+searchQuery+'"':''):'';
-  var el=document.getElementById('history-list');
-  if(!list.length){el.innerHTML='<div class="empty"><div class="eicon">'+(searchQuery?'🔍':'📋')+'</div>'+(searchQuery?'No results for "'+searchQuery+'"':'No entries for this period')+'</div>';return;}
-  el.innerHTML=list.map(function(e){return entryHTML(e,true,searchQuery);}).join('');
-}
-
-function renderSplit(){
-  // Group entries by year-month
-  var monthMap={};
-  entries.forEach(function(e){
-    var d=new Date(e.date);
-    var key=d.getFullYear()+'-'+String(d.getMonth()).padStart(2,'0');
-    if(!monthMap[key]){monthMap[key]={year:d.getFullYear(),month:d.getMonth(),entries:[]};}
-    monthMap[key].entries.push(e);
-  });
-  var keys=Object.keys(monthMap).sort().reverse();
-  if(!keys.length){
-    document.getElementById('split-list').innerHTML='<div class="empty"><div class="eicon">📅</div>No data yet. Add some sales first!</div>';
-    document.getElementById('split-pending-total').textContent='₹0';
-    document.getElementById('split-pending-label').textContent='pending to be cleared';
-    return;
-  }
-  var totalPending=0;
-  var pendingCount=0;
-  var html='';
-  keys.forEach(function(key){
-    var m=monthMap[key];
-    var revenue=m.entries.reduce(function(s,e){return s+e.sold;},0);
-    var cost=m.entries.reduce(function(s,e){return s+e.material+e.lace+e.handwork;},0);
-    var profit=revenue-cost;
-    var vaajebat=profit>0?profit/40:0;
-    var afterVaajebat=profit-vaajebat;
-    var eachShare=afterVaajebat/2;
-    var isCleared=!!clearedMonths[key];
-    if(!isCleared&&profit>0){totalPending+=eachShare*2;pendingCount++;}
-    var label=MONTHS[m.month]+' '+m.year;
-    html+='<div class="month-card">'
-      +'<div class="month-top">'
-      +'<div class="month-name">'+label+'</div>'
-      +'<span class="cleared-badge '+(isCleared?'cleared-yes':'cleared-no')+'">'+(isCleared?'✓ Cleared':'Pending')+'</span>'
-      +'</div>'
-      +'<div class="month-stats">'
-      +'<div class="mstat"><div class="mv">'+m.entries.length+'</div><div class="ml">Sales</div></div>'
-      +'<div class="mstat"><div class="mv">'+fmt(profit)+'</div><div class="ml">Profit</div></div>'
-      +'<div class="mstat"><div class="mv">'+fmt(vaajebat)+'</div><div class="ml">Vaajebat</div></div>'
-      +'</div>'
-      +'<div class="split-row">'
-      +'<div class="split-box"><div class="sname">Wife\'s Share</div><div class="sval">'+fmt(eachShare)+'</div></div>'
-      +'<div class="split-box"><div class="sname">Mother\'s Share</div><div class="sval">'+fmt(eachShare)+'</div></div>'
-      +'</div>'
-      +'<button class="clear-toggle '+(isCleared?'is-cleared':'not-cleared')+'" onclick="toggleCleared(\''+key+'\')">'
-      +(isCleared?'✓ Cleared — Tap to Undo':'Mark as Cleared (Split Done)')
-      +'</button>'
-      +'</div>';
-  });
-  document.getElementById('split-list').innerHTML=html;
-  document.getElementById('split-pending-total').textContent=fmt(totalPending);
-  document.getElementById('split-pending-label').textContent=pendingCount>0?pendingCount+' month'+(pendingCount!==1?'s':'')+' pending to be cleared':'All months cleared!';
-}
-
-function toggleCleared(key){
-  if(clearedMonths[key]){delete clearedMonths[key];}
-  else{clearedMonths[key]=true;}
-  save();
-  renderSplit();
-}
-
-function previewProfit(){
-  var mat=parseFloat(document.getElementById('f-material').value)||0;
-  var lace=parseFloat(document.getElementById('f-lace').value)||0;
-  var hw=parseFloat(document.getElementById('f-handwork').value)||0;
-  var sold=parseFloat(document.getElementById('f-sold').value)||0;
-  var el=document.getElementById('profit-preview');
-  if(sold>0){
-    var p=sold-mat-lace-hw;
-    el.textContent=(p>=0?'Profit: ':'Loss: ')+fmt(Math.abs(p));
-    el.style.background=p>=0?'#e8f5ee':'#fff0f0';
-    el.style.color=p>=0?'#1e6e42':'#c0392b';
-    el.classList.add('show');
-  }else{el.classList.remove('show');}
-}
-
-function handleImageSelect(e){
-  var file=e.target.files[0];
-  if(!file)return;
-  var reader=new FileReader();
-  reader.onload=function(ev){
-    var img=document.getElementById('img-preview');
-    img.src=ev.target.result;
-    img.style.display='block';
-    document.getElementById('img-placeholder').style.display='none';
-    document.getElementById('img-clear-btn').style.display='flex';
-  };
-  reader.readAsDataURL(file);
-}
-function clearImage(ev){
-  ev.stopPropagation();
-  document.getElementById('f-image').value='';
-  document.getElementById('img-preview').src='';
-  document.getElementById('img-preview').style.display='none';
-  document.getElementById('img-placeholder').style.display='flex';
-  document.getElementById('img-clear-btn').style.display='none';
-}
-
-function editEntry(id){
-  var e=entries.find(function(x){return x.id===id;});
-  if(!e)return;
-  editingId=id;
-  document.getElementById('f-name').value=e.name||'';
-  document.getElementById('f-material').value=e.material||'';
-  document.getElementById('f-lace').value=e.lace||'';
-  document.getElementById('f-handwork').value=e.handwork||'';
-  document.getElementById('f-sold').value=e.sold||'';
-  document.getElementById('f-customer').value=e.customer||'';
-  // Restore image if exists
-  var imgEl=document.getElementById('img-preview');
-  if(e.image){
-    imgEl.src=e.image;
-    imgEl.style.display='block';
-    document.getElementById('img-placeholder').style.display='none';
-    document.getElementById('img-clear-btn').style.display='flex';
-  } else {
-    imgEl.src='';imgEl.style.display='none';
-    document.getElementById('img-placeholder').style.display='flex';
-    document.getElementById('img-clear-btn').style.display='none';
-  }
-  document.getElementById('form-title').textContent='Edit Sale Entry';
-  document.getElementById('save-btn').textContent='Update Entry';
-  document.getElementById('edit-mode-banner').style.display='flex';
-  previewProfit();
-  switchTab('add');
-}
-
-function cancelEdit(){
-  editingId=null;
-  ['f-name','f-material','f-lace','f-handwork','f-sold','f-customer'].forEach(function(id){document.getElementById(id).value='';});
-  document.getElementById('profit-preview').classList.remove('show');
-  clearImage({stopPropagation:function(){}});
-  document.getElementById('form-title').textContent='New Sale Entry';
-  document.getElementById('save-btn').textContent='Save Entry';
-  document.getElementById('edit-mode-banner').style.display='none';
-  switchTab('history');
-}
-
-function saveEntry(){
-  var name=document.getElementById('f-name').value.trim();
-  var material=parseFloat(document.getElementById('f-material').value)||0;
-  var lace=parseFloat(document.getElementById('f-lace').value)||0;
-  var handwork=parseFloat(document.getElementById('f-handwork').value)||0;
-  var sold=parseFloat(document.getElementById('f-sold').value)||0;
-  var customer=document.getElementById('f-customer').value.trim();
-  var imgEl=document.getElementById('img-preview');
-  var imageData=imgEl.style.display!=='none'?imgEl.src:'';
-  if(!name){alert('Please enter the Rida name.');return;}
-  if(!sold){alert('Please enter the sold price.');return;}
-  if(!customer){alert('Please enter the customer name.');return;}
-
-  if(editingId){
-    // Update existing entry
-    entries=entries.map(function(e){
-      if(e.id===editingId){
-        return Object.assign({},e,{name:name,material:material,lace:lace,handwork:handwork,sold:sold,customer:customer,image:imageData});
-      }
-      return e;
-    });
-    editingId=null;
-    document.getElementById('form-title').textContent='New Sale Entry';
-    document.getElementById('save-btn').textContent='Save Entry';
-    document.getElementById('edit-mode-banner').style.display='none';
-  } else {
-    // Add new entry
-    entries.push({id:Date.now().toString(),sr:entries.length+1,name:name,material:material,lace:lace,handwork:handwork,sold:sold,customer:customer,date:new Date().toISOString(),paymentStatus:'',image:imageData});
-  }
-
-  save();
-  ['f-name','f-material','f-lace','f-handwork','f-sold','f-customer'].forEach(function(id){document.getElementById(id).value='';});
-  document.getElementById('profit-preview').classList.remove('show');
-  clearImage({stopPropagation:function(){}});
-  switchTab('dashboard');
-}
-
-function addEntry(){saveEntry();}
-
-function deleteEntry(id){
-  if(!confirm('Delete this entry?'))return;
-  entries=entries.filter(function(e){return e.id!==id;});
-  save();renderHistory();renderDashboard();
-}
-
-function exportToCSV(){
-  var list=entries.slice().reverse();
-  if(activeFilter==='date') list=filterByDate(list);
-  else list=filterByPeriod(list,historyPeriod);
-  list=filterBySearch(list);
-  
-  if(list.length===0){
-    alert('No records to export for the current filter!');
-    return;
-  }
-  
-  var headers=['Sr. No.','Rida Name','Customer','Date','Material','Lace','Handwork','Sold Price','Profit','Payment Status','Partial Amount'];
-  var csvContent=headers.join(',')+'\n';
-  
-  list.forEach(function(e){
-    var profit=e.sold-e.material-e.lace-e.handwork;
-    var paymentStatus=e.paymentStatus||'';
-    var partialAmount=e.partialAmount||0;
-    var d=new Date(e.date);
-    var dateStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    
-    var row=[
-      e.sr,
-      '"'+e.name+'"', // Quote to handle commas in names
-      '"'+e.customer+'"', // Quote to handle commas in names
-      '"'+dateStr+'"', // Quote date to prevent Excel formatting issues
-      e.material,
-      e.lace,
-      e.handwork,
-      e.sold,
-      profit,
-      paymentStatus,
-      partialAmount
-    ];
-    
-    csvContent+=row.join(',')+'\n';
-  });
-  
-  var blob=new Blob([csvContent],{type:'text/csv;charset=utf-8;'});
-  var link=document.createElement('a');
-  var url=URL.createObjectURL(blob);
-  
-  var filename='rida_sales_'+new Date().toISOString().slice(0,10)+'.csv';
-  
-  link.setAttribute('href',url);
-  link.setAttribute('download',filename);
-  link.style.visibility='hidden';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
-
-function openImg(id){
-  var e=entries.find(function(x){return x.id===id;});
-  if(!e||!e.image)return;
-  document.getElementById('lightbox-img').src=e.image;
-  document.getElementById('lightbox').style.display='flex';
-}
-
-renderDashboard();
-</script>
 <!-- LIGHTBOX -->
 <div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999;align-items:center;justify-content:center;" onclick="document.getElementById('lightbox').style.display='none'">
   <img id="lightbox-img" style="max-width:95vw;max-height:90vh;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,0.5);" alt="Rida"/>
   <button style="position:absolute;top:18px;right:18px;background:rgba(255,255,255,0.15);border:none;color:#fff;width:38px;height:38px;border-radius:50%;font-size:20px;cursor:pointer;">✕</button>
 </div>
+
+<!-- Firebase SDK -->
+<script type="module" src="firebase-init.js"></script>
+
+<script defer>
+var entries = {};    // keyed by entry.id — never an array at the top level
+var clearedMonths = {};
+var editingId = null;
+var currentPeriod = 'weekly';
+var historyPeriod = 'all';
+var activeFilter = 'all';
+var searchQuery = '';
+var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// ── CSV IMPORT STATE ─────────────────────────────────────────────────────────
+var pendingImportRows = [];
+var pendingImportUpdated = 0;
+
+// ── TOAST ────────────────────────────────────────────────────────────────────
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type || '');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function() { t.className = 'toast'; }, 3000);
+}
+
+// ── FIREBASE LISTENERS ───────────────────────────────────────────────────────
+function setupListeners() {
+  window.onValue(window.ref(window.database, 'entries'), function(snapshot) {
+    entries = snapshot.val() || {};
+    renderDashboard();
+    renderHistory();
+    renderSplit();
+  });
+  window.onValue(window.ref(window.database, 'clearedMonths'), function(snapshot) {
+    clearedMonths = snapshot.val() || {};
+    renderSplit();
+  });
+}
+
+// Wait for firebase-init module to set window.database
+function waitForFirebase(cb, attempts) {
+  attempts = attempts || 0;
+  if (window.database && window.ref && window.onValue) { cb(); return; }
+  if (attempts > 40) { console.error('Firebase did not load in time.'); return; }
+  setTimeout(function() { waitForFirebase(cb, attempts + 1); }, 150);
+}
+
+waitForFirebase(function() {
+  setupListeners();
+});
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+function entriesArray() {
+  // Convert entries object to array, sorted by sr ascending
+  return Object.values(entries).sort(function(a, b) { return (a.sr || 0) - (b.sr || 0); });
+}
+
+function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+
+// ── TABS ─────────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  ['dashboard','add','history','split'].forEach(function(t) {
+    document.getElementById('sec-' + t).classList.toggle('active', t === tab);
+    document.getElementById('nav-' + t).classList.toggle('active', t === tab);
+  });
+  if (tab === 'dashboard') renderDashboard();
+  if (tab === 'history') renderHistory();
+  if (tab === 'split') renderSplit();
+}
+
+function setPeriod(p, el) {
+  currentPeriod = p;
+  document.querySelectorAll('#sec-dashboard .period-btn').forEach(function(b) { b.classList.remove('active'); });
+  el.classList.add('active');
+  renderDashboard();
+}
+
+function setHistoryPeriod(p, el) {
+  historyPeriod = p;
+  document.querySelectorAll('#history-period-row .period-btn').forEach(function(b) { b.classList.remove('active'); });
+  el.classList.add('active');
+  renderHistory();
+}
+
+function setFilter(f, el) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-chips .chip').forEach(function(b) { b.classList.remove('active'); });
+  el.classList.add('active');
+  var df = document.getElementById('date-filter');
+  var pr = document.getElementById('history-period-row');
+  if (f === 'date') { df.classList.add('show'); pr.style.display = 'none'; }
+  else { df.classList.remove('show'); pr.style.display = 'flex'; }
+  renderHistory();
+}
+
+// ── SEARCH ───────────────────────────────────────────────────────────────────
+function onSearchInput() {
+  searchQuery = document.getElementById('search-input').value.trim();
+  var cb = document.getElementById('clear-btn');
+  searchQuery.length > 0 ? cb.classList.add('show') : cb.classList.remove('show');
+  renderHistory();
+}
+function clearSearch() {
+  document.getElementById('search-input').value = '';
+  searchQuery = '';
+  document.getElementById('clear-btn').classList.remove('show');
+  renderHistory();
+}
+
+// ── FILTERS ──────────────────────────────────────────────────────────────────
+function filterByPeriod(list, period) {
+  var now = new Date();
+  if (period === 'all') return list;
+  return list.filter(function(e) {
+    var d = new Date(e.date);
+    if (period === 'weekly') { var w = new Date(now); w.setDate(now.getDate() - 7); return d >= w; }
+    if (period === 'monthly') { return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }
+    if (period === 'yearly') { return d.getFullYear() === now.getFullYear(); }
+    return true;
+  });
+}
+function filterByDate(list) {
+  var from = document.getElementById('date-from').value;
+  var to = document.getElementById('date-to').value;
+  return list.filter(function(e) {
+    var d = new Date(e.date);
+    if (from && d < new Date(from)) return false;
+    if (to) { var t = new Date(to); t.setHours(23, 59, 59); if (d > t) return false; }
+    return true;
+  });
+}
+function filterBySearch(list) {
+  if (!searchQuery && activeFilter !== 'paid' && activeFilter !== 'due' && activeFilter !== 'partial') return list;
+  var q = searchQuery.toLowerCase();
+  return list.filter(function(e) {
+    if (activeFilter === 'paid') return e.paymentStatus === 'paid';
+    if (activeFilter === 'partial') return e.paymentStatus === 'partial';
+    if (activeFilter === 'due') return e.paymentStatus === 'due' || !e.paymentStatus;
+    if (activeFilter === 'name') return e.name.toLowerCase().includes(q);
+    if (activeFilter === 'customer') return e.customer.toLowerCase().includes(q);
+    if (activeFilter === 'sr') return String(e.sr).includes(q);
+    return e.name.toLowerCase().includes(q) || e.customer.toLowerCase().includes(q) || String(e.sr).includes(q) || e.date.includes(q);
+  });
+}
+function highlight(text, query) {
+  if (!query) return String(text);
+  var esc = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return String(text).replace(new RegExp('(' + esc + ')', 'gi'), '<span class="highlight">$1</span>');
+}
+function filterBy(period) {
+  return filterByPeriod(entriesArray(), period);
+}
+
+// ── VAAJEBAT ─────────────────────────────────────────────────────────────────
+function calcVaajebat(period) {
+  var now = new Date();
+  var all = entriesArray();
+  if (period === 'weekly') {
+    var w = new Date(now); w.setDate(now.getDate() - 7);
+    var f = all.filter(function(e) { return new Date(e.date) >= w; });
+    var p = f.reduce(function(s, e) { return s + e.sold - e.material - e.lace - e.handwork; }, 0);
+    return { val: p > 0 ? p / 40 : 0, note: "1/40th of this week's profit", badge: '1/40 Weekly' };
+  }
+  if (period === 'monthly') {
+    var f2 = all.filter(function(e) { var d = new Date(e.date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); });
+    var p2 = f2.reduce(function(s, e) { return s + e.sold - e.material - e.lace - e.handwork; }, 0);
+    return { val: p2 > 0 ? p2 / 40 : 0, note: "1/40th of this month's profit", badge: '1/40 Monthly' };
+  }
+  var mm = {};
+  all.filter(function(e) { return new Date(e.date).getFullYear() === now.getFullYear(); }).forEach(function(e) {
+    var d = new Date(e.date); var k = d.getFullYear() + '-' + d.getMonth();
+    if (!mm[k]) mm[k] = 0; mm[k] += e.sold - e.material - e.lace - e.handwork;
+  });
+  var total = 0; Object.keys(mm).forEach(function(k) { if (mm[k] > 0) total += mm[k] / 40; });
+  var months = Object.keys(mm).length;
+  return { val: total, note: 'Sum of 1/40th from each month (' + months + ' month' + (months !== 1 ? 's' : '') + ')', badge: '1/40 Per Month' };
+}
+
+// ── DASHBOARD ────────────────────────────────────────────────────────────────
+function renderDashboard() {
+  var f = filterBy(currentPeriod);
+  var revenue = f.reduce(function(s, e) { return s + e.sold; }, 0);
+  var material = f.reduce(function(s, e) { return s + e.material; }, 0);
+  var lace = f.reduce(function(s, e) { return s + e.lace; }, 0);
+  var handwork = f.reduce(function(s, e) { return s + e.handwork; }, 0);
+  var cost = material + lace + handwork;
+  var profit = revenue - cost;
+  document.getElementById('m-sales').textContent = f.length;
+  document.getElementById('m-revenue').textContent = fmt(revenue);
+  document.getElementById('m-cost').textContent = fmt(cost);
+  document.getElementById('m-profit').textContent = fmt(profit);
+  document.getElementById('m-material').textContent = fmt(material);
+  document.getElementById('m-lace').textContent = fmt(lace);
+  document.getElementById('m-handwork').textContent = fmt(handwork);
+  var v = calcVaajebat(currentPeriod);
+  document.getElementById('m-vaajebat').textContent = fmt(v.val);
+  document.getElementById('vaajebat-note').textContent = v.note;
+  document.getElementById('vaajebat-badge').textContent = v.badge;
+  var recent = entriesArray().reverse().slice(0, 5);
+  var el = document.getElementById('recent-list');
+  if (!recent.length) { el.innerHTML = '<div class="empty"><div class="eicon">🧾</div>No sales yet. Tap + Add Sale to begin!</div>'; return; }
+  el.innerHTML = recent.map(function(e) { return entryHTML(e, false, ''); }).join('');
+}
+
+// ── PAYMENT ──────────────────────────────────────────────────────────────────
+function togglePayment(id, status) {
+  var entry = entries[id];
+  if (!entry) return;
+  var updated = Object.assign({}, entry);
+
+  if (status === 'partial') {
+    var currentAmount = entry.partialAmount || 0;
+    var newAmount = prompt('Enter partial payment amount (Current: ' + fmt(currentAmount) + ', Total: ' + fmt(entry.sold) + '):', currentAmount);
+    if (newAmount === null) return;
+    var amount = parseFloat(newAmount);
+    if (isNaN(amount) || amount < 0 || amount > entry.sold) { alert('Please enter a valid amount between 0 and ' + fmt(entry.sold)); return; }
+    if (amount === 0) { updated.paymentStatus = ''; delete updated.partialAmount; }
+    else if (amount >= entry.sold) { updated.paymentStatus = 'paid'; delete updated.partialAmount; }
+    else { updated.paymentStatus = 'partial'; updated.partialAmount = amount; }
+  } else {
+    updated.paymentStatus = (updated.paymentStatus === status) ? '' : status;
+    if (updated.paymentStatus !== 'partial') delete updated.partialAmount;
+  }
+
+  window.db_setEntry(updated)
+    .then(function() { showToast('Payment status updated', 'success'); })
+    .catch(function(err) { showToast('Failed to update: ' + err, 'error'); });
+}
+
+// ── ENTRY HTML ───────────────────────────────────────────────────────────────
+function entryHTML(e, showDel, query) {
+  var profit = e.sold - e.material - e.lace - e.handwork;
+  var d = new Date(e.date);
+  var dateStr = d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear();
+  var ename = query ? highlight(e.name, query) : e.name;
+  var ecust = query ? highlight(e.customer, query) : e.customer;
+  var esr = query ? highlight(String(e.sr), query) : e.sr;
+  var isPaid = e.paymentStatus === 'paid';
+  var isDue = e.paymentStatus === 'due';
+  var isPartial = e.paymentStatus === 'partial';
+  var partialAmount = e.partialAmount || 0;
+  var statusBadge = isPaid ? '<span class="status-badge status-paid">Paid</span>'
+    : isDue ? '<span class="status-badge status-due">Due</span>'
+    : isPartial ? '<span class="status-badge status-partial">Partial ' + fmt(partialAmount) + '</span>' : '';
+  return '<div class="entry-card">'
+    + '<div class="entry-body">'
+    + (e.image ? '<img class="entry-thumb" src="' + e.image + '" alt="Rida photo" onclick="openImg(\'' + e.id + '\')" />' : '')
+    + '<div class="entry-details">'
+    + '<div class="entry-sr">Sr. ' + esr + statusBadge + '</div>'
+    + '<div class="entry-top">'
+    + '<div><div class="entry-name">' + ename + '</div><div class="entry-customer">' + ecust + '</div></div>'
+    + '<div style="display:flex;align-items:center;gap:6px;">'
+    + '<span class="profit-pill">+' + fmt(profit) + '</span>'
+    + (showDel ? '<button class="edit-btn" onclick="editEntry(\'' + e.id + '\')">&#x270f;</button>' : '')
+    + (showDel ? '<button class="del-btn" onclick="deleteEntry(\'' + e.id + '\')">&#x2715;</button>' : '')
+    + '</div></div>'
+    + '<div class="entry-row">'
+    + '<span class="entry-tag">Mat: ' + fmt(e.material) + '</span>'
+    + '<span class="entry-tag">Lace: ' + fmt(e.lace) + '</span>'
+    + '<span class="entry-tag">HW: ' + fmt(e.handwork) + '</span>'
+    + '<span class="entry-tag">Sold: ' + fmt(e.sold) + '</span>'
+    + '</div>'
+    + '<div class="entry-date">' + dateStr + '</div>'
+    + '</div></div>'
+    + '<div class="payment-row">'
+    + '<button class="pay-btn ' + (isPaid ? 'active-paid' : 'paid') + '" onclick="togglePayment(\'' + e.id + '\',\'paid\')">Paid</button>'
+    + '<button class="pay-btn ' + (isPartial ? 'active-partial' : 'partial') + '" onclick="togglePayment(\'' + e.id + '\',\'partial\')">Partial</button>'
+    + '<button class="pay-btn ' + (isDue ? 'active-due' : 'due') + '" onclick="togglePayment(\'' + e.id + '\',\'due\')">Due</button>'
+    + '</div></div>';
+}
+
+// ── HISTORY ──────────────────────────────────────────────────────────────────
+function renderHistory() {
+  var list = entriesArray().reverse();
+  if (activeFilter === 'date') list = filterByDate(list);
+  else list = filterByPeriod(list, historyPeriod);
+  list = filterBySearch(list);
+
+  var ha = document.getElementById('history-analytics');
+  if (list.length > 0) {
+    ha.style.display = 'block';
+    var revenue = list.reduce(function(s, e) { return s + e.sold; }, 0);
+    var material = list.reduce(function(s, e) { return s + e.material; }, 0);
+    var lace = list.reduce(function(s, e) { return s + e.lace; }, 0);
+    var handwork = list.reduce(function(s, e) { return s + e.handwork; }, 0);
+    var cost = material + lace + handwork;
+    var profit = revenue - cost;
+    var paidCount = list.filter(function(e) { return e.paymentStatus === 'paid'; }).length;
+    var dueCount = list.filter(function(e) { return e.paymentStatus === 'due' || !e.paymentStatus; }).length;
+    var partialCount = list.filter(function(e) { return e.paymentStatus === 'partial'; }).length;
+    var paidAmt = list.filter(function(e) { return e.paymentStatus === 'paid'; }).reduce(function(s, e) { return s + e.sold; }, 0);
+    var dueAmt = list.filter(function(e) { return e.paymentStatus === 'due' || !e.paymentStatus; }).reduce(function(s, e) { return s + e.sold; }, 0);
+    var partialAmt = list.filter(function(e) { return e.paymentStatus === 'partial'; }).reduce(function(s, e) { return s + (e.partialAmount || 0); }, 0);
+    var partialTotalAmt = list.filter(function(e) { return e.paymentStatus === 'partial'; }).reduce(function(s, e) { return s + e.sold; }, 0);
+    ha.innerHTML = '<div class="analytics-bar">'
+      + '<div class="atitle">Analytics - ' + list.length + ' record' + (list.length !== 1 ? 's' : '') + '</div>'
+      + '<div class="analytics-grid">'
+      + '<div class="astat"><div class="av">' + fmt(revenue) + '</div><div class="al">Revenue</div></div>'
+      + '<div class="astat"><div class="av">' + fmt(cost) + '</div><div class="al">Cost</div></div>'
+      + '<div class="astat green"><div class="av">' + fmt(profit) + '</div><div class="al">Profit</div></div>'
+      + '</div>'
+      + '<div class="cost-breakdown"><div class="cb-title">Cost Breakdown</div><div class="cb-grid">'
+      + '<div class="cb-item"><div class="cbv">' + fmt(material) + '</div><div class="cbl">Material</div></div>'
+      + '<div class="cb-item"><div class="cbv">' + fmt(lace) + '</div><div class="cbl">Lace</div></div>'
+      + '<div class="cb-item"><div class="cbv">' + fmt(handwork) + '</div><div class="cbl">Handwork</div></div>'
+      + '</div></div>'
+      + '<div class="pay-stats">'
+      + '<div class="pay-stat p"><div class="pv">' + paidCount + ' (' + fmt(paidAmt) + ')</div><div class="pl">Paid entries</div></div>'
+      + '<div class="pay-stat partial"><div class="pv">' + partialCount + ' (' + fmt(partialAmt) + '/' + fmt(partialTotalAmt) + ')</div><div class="pl">Partial entries</div></div>'
+      + '<div class="pay-stat d"><div class="pv">' + dueCount + ' (' + fmt(dueAmt) + ')</div><div class="pl">Due entries</div></div>'
+      + '</div></div>';
+  } else { ha.style.display = 'none'; }
+
+  var rc = document.getElementById('results-count');
+  rc.textContent = list.length > 0 ? list.length + ' result' + (list.length !== 1 ? 's' : '') + (searchQuery ? ' for "' + searchQuery + '"' : '') : '';
+  var el = document.getElementById('history-list');
+  if (!list.length) { el.innerHTML = '<div class="empty"><div class="eicon">' + (searchQuery ? '🔍' : '📋') + '</div>' + (searchQuery ? 'No results for "' + searchQuery + '"' : 'No entries for this period') + '</div>'; return; }
+  el.innerHTML = list.map(function(e) { return entryHTML(e, true, searchQuery); }).join('');
+}
+
+// ── SPLIT ────────────────────────────────────────────────────────────────────
+function renderSplit() {
+  var all = entriesArray();
+  var monthMap = {};
+  all.forEach(function(e) {
+    var d = new Date(e.date);
+    var key = d.getFullYear() + '-' + String(d.getMonth()).padStart(2, '0');
+    if (!monthMap[key]) { monthMap[key] = { year: d.getFullYear(), month: d.getMonth(), entries: [] }; }
+    monthMap[key].entries.push(e);
+  });
+  var keys = Object.keys(monthMap).sort().reverse();
+  if (!keys.length) {
+    document.getElementById('split-list').innerHTML = '<div class="empty"><div class="eicon">📅</div>No data yet. Add some sales first!</div>';
+    document.getElementById('split-pending-total').textContent = '₹0';
+    document.getElementById('split-pending-label').textContent = 'pending to be cleared';
+    return;
+  }
+  var totalPending = 0; var pendingCount = 0; var html = '';
+  keys.forEach(function(key) {
+    var m = monthMap[key];
+    var revenue = m.entries.reduce(function(s, e) { return s + e.sold; }, 0);
+    var cost = m.entries.reduce(function(s, e) { return s + e.material + e.lace + e.handwork; }, 0);
+    var profit = revenue - cost;
+    var vaajebat = profit > 0 ? profit / 40 : 0;
+    var afterVaajebat = profit - vaajebat;
+    var eachShare = afterVaajebat / 2;
+    var isCleared = !!clearedMonths[key];
+    if (!isCleared && profit > 0) { totalPending += eachShare * 2; pendingCount++; }
+    var label = MONTHS[m.month] + ' ' + m.year;
+    html += '<div class="month-card">'
+      + '<div class="month-top"><div class="month-name">' + label + '</div>'
+      + '<span class="cleared-badge ' + (isCleared ? 'cleared-yes' : 'cleared-no') + '">' + (isCleared ? '✓ Cleared' : 'Pending') + '</span></div>'
+      + '<div class="month-stats">'
+      + '<div class="mstat"><div class="mv">' + m.entries.length + '</div><div class="ml">Sales</div></div>'
+      + '<div class="mstat"><div class="mv">' + fmt(profit) + '</div><div class="ml">Profit</div></div>'
+      + '<div class="mstat"><div class="mv">' + fmt(vaajebat) + '</div><div class="ml">Vaajebat</div></div>'
+      + '</div>'
+      + '<div class="split-row">'
+      + '<div class="split-box"><div class="sname">Wife\'s Share</div><div class="sval">' + fmt(eachShare) + '</div></div>'
+      + '<div class="split-box"><div class="sname">Mother\'s Share</div><div class="sval">' + fmt(eachShare) + '</div></div>'
+      + '</div>'
+      + '<button class="clear-toggle ' + (isCleared ? 'is-cleared' : 'not-cleared') + '" onclick="toggleCleared(\'' + key + '\')">'
+      + (isCleared ? '✓ Cleared — Tap to Undo' : 'Mark as Cleared (Split Done)')
+      + '</button></div>';
+  });
+  document.getElementById('split-list').innerHTML = html;
+  document.getElementById('split-pending-total').textContent = fmt(totalPending);
+  document.getElementById('split-pending-label').textContent = pendingCount > 0 ? pendingCount + ' month' + (pendingCount !== 1 ? 's' : '') + ' pending to be cleared' : 'All months cleared!';
+}
+
+function toggleCleared(key) {
+  if (clearedMonths[key]) {
+    window.db_removeCleared(key).catch(function(e) { showToast('Failed: ' + e, 'error'); });
+  } else {
+    window.db_setCleared(key, true).catch(function(e) { showToast('Failed: ' + e, 'error'); });
+  }
+}
+
+// ── FORM ─────────────────────────────────────────────────────────────────────
+function previewProfit() {
+  var mat = parseFloat(document.getElementById('f-material').value) || 0;
+  var lace = parseFloat(document.getElementById('f-lace').value) || 0;
+  var hw = parseFloat(document.getElementById('f-handwork').value) || 0;
+  var sold = parseFloat(document.getElementById('f-sold').value) || 0;
+  var el = document.getElementById('profit-preview');
+  if (sold > 0) {
+    var p = sold - mat - lace - hw;
+    el.textContent = (p >= 0 ? 'Profit: ' : 'Loss: ') + fmt(Math.abs(p));
+    el.style.background = p >= 0 ? '#e8f5ee' : '#fff0f0';
+    el.style.color = p >= 0 ? '#1e6e42' : '#c0392b';
+    el.classList.add('show');
+  } else { el.classList.remove('show'); }
+}
+
+function handleImageSelect(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    var img = document.getElementById('img-preview');
+    img.src = ev.target.result;
+    img.style.display = 'block';
+    document.getElementById('img-placeholder').style.display = 'none';
+    document.getElementById('img-clear-btn').style.display = 'flex';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearImage(ev) {
+  ev.stopPropagation();
+  document.getElementById('f-image').value = '';
+  document.getElementById('img-preview').src = '';
+  document.getElementById('img-preview').style.display = 'none';
+  document.getElementById('img-placeholder').style.display = 'flex';
+  document.getElementById('img-clear-btn').style.display = 'none';
+}
+
+function editEntry(id) {
+  var e = entries[id];
+  if (!e) return;
+  editingId = id;
+  document.getElementById('f-name').value = e.name || '';
+  document.getElementById('f-material').value = e.material || '';
+  document.getElementById('f-lace').value = e.lace || '';
+  document.getElementById('f-handwork').value = e.handwork || '';
+  document.getElementById('f-sold').value = e.sold || '';
+  document.getElementById('f-customer').value = e.customer || '';
+  var imgEl = document.getElementById('img-preview');
+  if (e.image) { imgEl.src = e.image; imgEl.style.display = 'block'; document.getElementById('img-placeholder').style.display = 'none'; document.getElementById('img-clear-btn').style.display = 'flex'; }
+  else { imgEl.src = ''; imgEl.style.display = 'none'; document.getElementById('img-placeholder').style.display = 'flex'; document.getElementById('img-clear-btn').style.display = 'none'; }
+  document.getElementById('form-title').textContent = 'Edit Sale Entry';
+  document.getElementById('save-btn').textContent = 'Update Entry';
+  document.getElementById('edit-mode-banner').style.display = 'flex';
+  previewProfit();
+  switchTab('add');
+}
+
+function cancelEdit() {
+  editingId = null;
+  ['f-name','f-material','f-lace','f-handwork','f-sold','f-customer'].forEach(function(id) { document.getElementById(id).value = ''; });
+  document.getElementById('profit-preview').classList.remove('show');
+  clearImage({ stopPropagation: function() {} });
+  document.getElementById('form-title').textContent = 'New Sale Entry';
+  document.getElementById('save-btn').textContent = 'Save Entry';
+  document.getElementById('edit-mode-banner').style.display = 'none';
+  switchTab('history');
+}
+
+function saveEntry() {
+  var name = document.getElementById('f-name').value.trim();
+  var material = parseFloat(document.getElementById('f-material').value) || 0;
+  var lace = parseFloat(document.getElementById('f-lace').value) || 0;
+  var handwork = parseFloat(document.getElementById('f-handwork').value) || 0;
+  var sold = parseFloat(document.getElementById('f-sold').value) || 0;
+  var customer = document.getElementById('f-customer').value.trim();
+  var imgEl = document.getElementById('img-preview');
+  var imageData = imgEl.style.display !== 'none' ? imgEl.src : '';
+  if (!name) { alert('Please enter the Rida name.'); return; }
+  if (!sold) { alert('Please enter the sold price.'); return; }
+  if (!customer) { alert('Please enter the customer name.'); return; }
+
+  var btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  var entry;
+  if (editingId) {
+    entry = Object.assign({}, entries[editingId], { name: name, material: material, lace: lace, handwork: handwork, sold: sold, customer: customer, image: imageData });
+  } else {
+    var allArr = entriesArray();
+    var maxSr = allArr.reduce(function(m, e) { return Math.max(m, e.sr || 0); }, 0);
+    entry = { id: Date.now().toString(), sr: maxSr + 1, name: name, material: material, lace: lace, handwork: handwork, sold: sold, customer: customer, date: new Date().toISOString(), paymentStatus: '', image: imageData };
+  }
+
+  window.db_setEntry(entry)
+    .then(function() {
+      editingId = null;
+      ['f-name','f-material','f-lace','f-handwork','f-sold','f-customer'].forEach(function(id) { document.getElementById(id).value = ''; });
+      document.getElementById('profit-preview').classList.remove('show');
+      clearImage({ stopPropagation: function() {} });
+      document.getElementById('form-title').textContent = 'New Sale Entry';
+      document.getElementById('save-btn').textContent = 'Save Entry';
+      document.getElementById('edit-mode-banner').style.display = 'none';
+      showToast('Entry saved ✓', 'success');
+      switchTab('dashboard');
+    })
+    .catch(function(err) {
+      showToast('Save failed: ' + err, 'error');
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.textContent = editingId ? 'Update Entry' : 'Save Entry';
+    });
+}
+
+function deleteEntry(id) {
+  if (!confirm('Delete this entry? This cannot be undone.')) return;
+  window.db_deleteEntry(id)
+    .then(function() { showToast('Entry deleted', 'success'); })
+    .catch(function(err) { showToast('Delete failed: ' + err, 'error'); });
+}
+
+// ── EXPORT CSV ───────────────────────────────────────────────────────────────
+function exportToCSV() {
+  var list = entriesArray().reverse();
+  if (activeFilter === 'date') list = filterByDate(list);
+  else list = filterByPeriod(list, historyPeriod);
+  list = filterBySearch(list);
+  if (list.length === 0) { alert('No records to export for the current filter!'); return; }
+  var headers = ['Sr. No.','Rida Name','Customer','Date','Material','Lace','Handwork','Sold Price','Profit','Payment Status','Partial Amount'];
+  var csv = headers.join(',') + '\n';
+  list.forEach(function(e) {
+    var profit = e.sold - e.material - e.lace - e.handwork;
+    var d = new Date(e.date);
+    var dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    csv += [e.sr, '"' + e.name + '"', '"' + e.customer + '"', '"' + dateStr + '"', e.material, e.lace, e.handwork, e.sold, profit, e.paymentStatus || '', e.partialAmount || 0].join(',') + '\n';
+  });
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'rida_sales_' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+}
+
+// ── CSV IMPORT ───────────────────────────────────────────────────────────────
+function openImportModal() {
+  pendingImportRows = [];
+  pendingImportUpdated = 0;
+  document.getElementById('import-preview').classList.remove('show');
+  document.getElementById('import-stats').style.display = 'none';
+  document.getElementById('do-import-btn').classList.remove('show');
+  document.getElementById('import-warn').classList.remove('show');
+  document.getElementById('csv-file-input').value = '';
+  document.getElementById('import-modal').classList.add('show');
+}
+function closeImportModal() { document.getElementById('import-modal').classList.remove('show'); }
+function closeImportModalOutside(e) { if (e.target === document.getElementById('import-modal')) closeImportModal(); }
+
+// Drag & drop
+var dropZone = document.getElementById('csv-drop-zone');
+if (dropZone) {
+  dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('dragover'); });
+  dropZone.addEventListener('drop', function(e) {
+    e.preventDefault(); dropZone.classList.remove('dragover');
+    var file = e.dataTransfer.files[0];
+    if (file) parseCSVFile(file);
+  });
+}
+
+function handleCSVFile(e) {
+  var file = e.target.files[0];
+  if (file) parseCSVFile(file);
+}
+
+function parseCSVFile(file) {
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    try { processCSVText(ev.target.result); }
+    catch(err) { showImportWarn('Could not parse CSV: ' + err.message); }
+  };
+  reader.readAsText(file);
+}
+
+function parseCSVLine(line) {
+  // Handles quoted fields with commas inside
+  var result = []; var inQuote = false; var field = '';
+  for (var i = 0; i < line.length; i++) {
+    var ch = line[i];
+    if (ch === '"') { inQuote = !inQuote; }
+    else if (ch === ',' && !inQuote) { result.push(field.trim()); field = ''; }
+    else { field += ch; }
+  }
+  result.push(field.trim());
+  return result;
+}
+
+function processCSVText(text) {
+  var lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(function(l) { return l.trim(); });
+  if (lines.length < 2) { showImportWarn('CSV file is empty or has no data rows.'); return; }
+
+  var headers = parseCSVLine(lines[0]).map(function(h) { return h.toLowerCase().replace(/[^a-z0-9]/g, ''); });
+
+  // Column index detection (flexible — works with any column order)
+  function col(name) { return headers.indexOf(name); }
+  var iSr = col('srno'); if(iSr<0) iSr = col('sr');
+  var iName = col('ridaname'); if(iName<0) iName = col('name');
+  var iCustomer = col('customer');
+  var iDate = col('date');
+  var iMaterial = col('material');
+  var iLace = col('lace');
+  var iHandwork = col('handwork');
+  var iSold = col('soldprice'); if(iSold<0) iSold = col('sold');
+  var iPayment = col('paymentstatus'); if(iPayment<0) iPayment = col('payment');
+  var iPartial = col('partialamount'); if(iPartial<0) iPartial = col('partial');
+
+  if (iName < 0 || iSold < 0) { showImportWarn('Could not find required columns (Rida Name, Sold Price). Check CSV format.'); return; }
+
+  var existingEntries = {};
+  entriesArray().forEach(function(e) { existingEntries[e.sr] = e; });
+
+  var parsed = []; var skipped = 0; var warnings = [];
+  for (var i = 1; i < lines.length; i++) {
+    var cols = parseCSVLine(lines[i]);
+    var sr = iSr >= 0 ? parseInt(cols[iSr]) : null;
+    var name = iName >= 0 ? cols[iName] : '';
+    var customer = iCustomer >= 0 ? cols[iCustomer] : 'Unknown';
+    var dateRaw = iDate >= 0 ? cols[iDate] : '';
+    var material = iMaterial >= 0 ? parseFloat(cols[iMaterial]) || 0 : 0;
+    var lace = iLace >= 0 ? parseFloat(cols[iLace]) || 0 : 0;
+    var handwork = iHandwork >= 0 ? parseFloat(cols[iHandwork]) || 0 : 0;
+    var sold = iSold >= 0 ? parseFloat(cols[iSold]) || 0 : 0;
+    var payment = iPayment >= 0 ? cols[iPayment] : '';
+    var partial = iPartial >= 0 ? parseFloat(cols[iPartial]) || 0 : 0;
+
+    if (!name || !sold) { warnings.push('Row ' + (i + 1) + ': missing name or sold price, skipped.'); skipped++; continue; }
+
+    // Parse date
+    var dateObj = dateRaw ? new Date(dateRaw) : new Date();
+    if (isNaN(dateObj.getTime())) dateObj = new Date();
+
+    // Determine next sr for new entries
+    var isNewEntry = !sr || !existingEntries[sr];
+    if (!sr) {
+      var allArr = entriesArray(); var maxSr = allArr.reduce(function(m, e) { return Math.max(m, e.sr || 0); }, 0);
+      sr = maxSr + parsed.length + 1;
+    }
+
+    var entry = {
+      id: isNewEntry ? 'imp_' + Date.now() + '_' + i : existingEntries[sr].id,
+      sr: sr, name: name, customer: customer,
+      date: dateObj.toISOString(),
+      material: material, lace: lace, handwork: handwork, sold: sold,
+      paymentStatus: payment || '', partialAmount: partial || undefined, image: ''
+    };
+    if (!partial) delete entry.partialAmount;
+    parsed.push(entry);
+    
+    if (!isNewEntry) pendingImportUpdated++;
+    else if (sr && existingEntries[sr]) skipped++; // This shouldn't happen but just in case
+  }
+
+  pendingImportRows = parsed;
+
+  // Show stats
+  document.getElementById('stat-total').textContent = lines.length - 1;
+  document.getElementById('stat-new').textContent = parsed.length - pendingImportUpdated;
+  document.getElementById('stat-skip').textContent = skipped;
+  document.getElementById('import-stats').style.display = 'flex';
+
+  // Show preview
+  var previewHtml = parsed.slice(0, 5).map(function(e) {
+    var isUpdate = existingEntries[e.sr];
+    var prefix = isUpdate ? '🔄 UPDATE' : '➕ NEW';
+    return '<div class="import-row">' + prefix + ' Sr.' + e.sr + ' · <strong>' + e.name + '</strong> · ' + e.customer + ' · Sold ₹' + e.sold + '</div>';
+  }).join('');
+  document.getElementById('import-preview-rows').innerHTML = previewHtml || '<div class="import-row">No valid rows found.</div>';
+  document.getElementById('import-preview').classList.add('show');
+
+  if (warnings.length) showImportWarn(warnings.join('<br/>'));
+  if (parsed.length > 0) document.getElementById('do-import-btn').classList.add('show');
+  else showImportWarn('No entries to import. All rows may be invalid.');
+}
+
+function showImportWarn(msg) {
+  var w = document.getElementById('import-warn');
+  w.innerHTML = '⚠️ ' + msg;
+  w.classList.add('show');
+}
+
+function doImport() {
+  if (!pendingImportRows.length) return;
+  var btn = document.getElementById('do-import-btn');
+  btn.disabled = true; btn.textContent = 'Importing…';
+
+  window.db_importEntries(pendingImportRows)
+    .then(function() {
+      closeImportModal();
+      var newCount = pendingImportRows.length - pendingImportUpdated;
+      var message = '✓ Imported ' + newCount + ' new entries';
+      if (pendingImportUpdated > 0) message += ' and updated ' + pendingImportUpdated + ' existing entries';
+      message += '!';
+      showToast(message, 'success');
+      pendingImportRows = [];
+      pendingImportUpdated = 0;
+    })
+    .catch(function(err) {
+      showToast('Import failed: ' + err, 'error');
+      btn.disabled = false; btn.textContent = 'Import Entries';
+      pendingImportUpdated = 0;
+    });
+}
+
+// ── MISC ─────────────────────────────────────────────────────────────────────
+function openImg(id) {
+  var e = entries[id];
+  if (!e || !e.image) return;
+  document.getElementById('lightbox-img').src = e.image;
+  document.getElementById('lightbox').style.display = 'flex';
+}
+
+renderDashboard();
+</script>
 </body>
 </html>
